@@ -1,5 +1,7 @@
 require('dotenv').config();
 const { Client, GatewayIntentBits, Partials, PermissionsBitField } = require('discord.js');
+const onCrash = require('./onCrash');
+onCrash.CrashHandler();
 const client = new Client({ 
     intents: [
         GatewayIntentBits.Guilds,
