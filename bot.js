@@ -107,8 +107,8 @@ client.on('messageReactionAdd', async (reaction, user) => {
                         ]
                     });
 
-                    const msg = await channel.send(`## 🎫This ticket was opened by ${user} \n > 💾 Your ticket will be saved. \n React with this emoji 🔒 to close the ticket.`);
-                    await msg.react('🔒');
+                    const msg = await channel.send(`## 🎫This ticket was opened by ${user} \n > 💾 Your ticket will be saved. \n React with this emoji 🔏 to close the ticket.`);
+                    await msg.react('🔏');
                     
                     const ticket = await Ticket.create({
                         authorId: user.id,
@@ -128,7 +128,7 @@ client.on('messageReactionAdd', async (reaction, user) => {
         } else {
             console.log('No ticket config found');
         }
-    } else if (reaction.emoji.name === '🔒') {
+    } else if (reaction.emoji.name === '🔏') {
         const ticket = await Ticket.findOne({ 
             where: { 
                 channelId: reaction.message.channel.id,
@@ -138,7 +138,6 @@ client.on('messageReactionAdd', async (reaction, user) => {
         
         if (ticket) {
             console.log('Closing ticket...');
-            
             
             try {
                 await reaction.message.channel.send('🔏 Closing ticket...')
@@ -151,8 +150,10 @@ client.on('messageReactionAdd', async (reaction, user) => {
                     resolved: true,
                     closedMessageId: reaction.message.id
                 });
+                const ticketChannel = reaction.message.channel
+                await ticketChannel.edit({ name: `${ticketChannel.name}-closed`});
                 
-                await reaction.message.channel.send('Ticket closed successfully 🤙')
+                await reaction.message.channel.send('Ticket closed successfully 🤙');
                 console.log('Ticket closed successfully');
                 
             } catch (err) {
