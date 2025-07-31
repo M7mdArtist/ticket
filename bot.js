@@ -115,32 +115,32 @@ client.on('messageCreate', async (message) => {
 }
 
 });
-
 client.on('messageReactionAdd', async (reaction, user) => {
     if (user.bot) return;
     
+    // Handle ticket creation reaction
     if (reaction.emoji.name === '🎫') {
         const ticketConfig = await TicketConfig.findOne({ where: { messageId: reaction.message.id } });
         if (ticketConfig) {
-            await reaction.users.remove(user.id).catch(console.error)
+            await reaction.users.remove(user.id).catch(console.error);
             const findTicket = await Ticket.findOne({ where: {authorId: user.id, resolved: false } });
-            if (findTicket) user.send('You already have a ticket');
-            else {
+            if (findTicket) {
+                user.send('You already have a ticket');
+            } else {
                 console.log('Creating a ticket');
                 try {
-                    await reaction.users.remove(user.id).catch(console.error)
+                    await reaction.users.remove(user.id).catch(console.error);
                     const roleIdsString = ticketConfig.getDataValue('roles');
-                    console.log(roleIdsString);
                     const roleIds = JSON.parse(roleIdsString);
-                    console.log(roleIds);
                     const permissions = roleIds.map((id) => ({
                         allow: [PermissionsBitField.Flags.ViewChannel],
                         id
                     }));
+                    
                     const channel = await reaction.message.guild.channels.create({
                         name: 'ticket',
                         parent: ticketConfig.getDataValue('parentId'),
-                        permissionOverwrites:[
+                        permissionOverwrites: [
                             {
                                 deny: [PermissionsBitField.Flags.ViewChannel],
                                 id: reaction.message.guild.id
@@ -153,7 +153,7 @@ client.on('messageReactionAdd', async (reaction, user) => {
                         ]
                     });
 
-                    const msg = await channel.send(`## 🎫This ticket was opened by ${user} \n > 💾 Your ticket will be saved. \n React with this emoji 🔏 to close the ticket.`);
+                    const msg = await channel.send(`## 🎫 This ticket was opened by ${user} \n > 💾 Your ticket will be saved. \n React with this emoji 🔏 to close the ticket.`);
                     await msg.react('🔏');
                     
                     const ticket = await Ticket.create({
@@ -164,7 +164,7 @@ client.on('messageReactionAdd', async (reaction, user) => {
                         closedMessageId: msg.id
                     });
                     
-                    const ticketId = String(ticket.getDataValue('ticketId')).padStart(4, 0);
+                    const ticketId = String(ticket.getDataValue('ticketId')).padStart(4, '0');
                     await channel.edit({ name: `ticket-${ticketId}` });
 
                 } catch (err) {
@@ -174,40 +174,84 @@ client.on('messageReactionAdd', async (reaction, user) => {
         } else {
             console.log('No ticket config found');
         }
-    } else if (reaction.emoji.name === '🔏') {
-        const ticket = await Ticket.findOne({ 
-            where: { 
-                channelId: reaction.message.channel.id,
-                resolved: false 
-            } 
-        });
-        
-        if (ticket) {
-            console.log('Closing ticket...');
+    } 
+    // Handle ticket closing reaction
+    else if (reaction.emoji.name === '🔏') {
+        try {
+            const ticket = await Ticket.findOne({ 
+                where: { 
+                    channelId: reaction.message.channel.id,
+                    resolved: false 
+                } 
+            });
             
-            try {
-                await reaction.message.channel.send('🔏 Closing ticket...')
-                await reaction.message.channel.permissionOverwrites.edit(
-                    ticket.authorId,
-                    { ViewChannel: false }
-                );
-                
-                await ticket.update({
-                    resolved: true,
-                    closedMessageId: reaction.message.id
-                });
-                const ticketChannel = reaction.message.channel
-                await ticketChannel.edit({ name: `${ticketChannel.name}-closed`});
-                
-                await reaction.message.channel.send('Ticket closed successfully 🤙');
-                console.log('Ticket closed successfully');
-                
-            } catch (err) {
-                console.error('Error closing ticket:', err);
-            }
+            if (!ticket) return;
+
+            const msg = await reaction.message.channel.send('Are you sure you want to close this ticket?');
+            await msg.react('✅');
+            await msg.react('❌');
+
+            const filter = (reaction, user) => {
+                return ['✅', '❌'].includes(reaction.emoji.name) && !user.bot;
+            };
+
+            const collector = msg.createReactionCollector({ 
+                filter, 
+                time: 15000, 
+                max: 1 
+            });
+
+            collector.on('collect', async (reaction) => {
+                if (reaction.emoji.name === '❌') {
+                    await reaction.message.channel.send('Closing ticket canceled');
+                    return;
+                } else if (reaction.emoji.name === '✅') {
+                    console.log('Closing ticket...');
+            
+                    try {
+                        await reaction.message.channel.send('🔏 Closing ticket...');
+                        await reaction.message.channel.permissionOverwrites.edit(
+                            ticket.authorId,
+                            { ViewChannel: false }
+                        );
+                        
+                        await ticket.update({
+                            resolved: true,
+                            closedMessageId: reaction.message.id
+                        });
+                        
+                        const ticketChannel = reaction.message.channel;
+                        await ticketChannel.edit({ name: `${ticketChannel.name}-closed`});
+                        
+                        await reaction.message.channel.send('Ticket closed successfully 🤙');
+                        console.log('Ticket closed successfully');
+                        
+                    } catch (err) {
+                        console.error('Error closing ticket:', err);
+                    }
+                }
+            });
+
+            collector.on('end', async collected => {
+             if (collected.size === 0) {
+                 try {
+                    const editedMsg = await msg.edit('Ticket confirmation timed out.\n **Closing ticket canceled**');
+                    setTimeout(async () => {
+                try {
+                    await editedMsg.delete();
+                } catch (deleteError) {
+                    console.error('Failed to delete message:', deleteError);
+                }
+                   }, 5000);
+                 } catch (editError) {
+               console.error('Failed to edit message:', editError);
+                  }
+                }
+                 });
+        } catch (err) {
+            console.error('Error in ticket closing process:', err);
         }
     }
-
 });
 
 client.login(process.env.BOT_TOKEN);
