@@ -104,7 +104,7 @@ client.on('messageCreate', async (message) => {
 
     if (message.content.toLowerCase() === '?delete') {
     const ticketConfig = await TicketConfig.findOne({ where: { guildId: message.guild.id } });
-    if(!message.channel.id === ticketConfig.getDataValue("deleteTicketsChannelId")) return;
+    if(message.channel.id !== ticketConfig.getDataValue("deleteTicketsChannelId")) return;
 
     const deleteCount = await deleteClosedTickets(message.guild, ticketConfig.getDataValue('parentId'), 'closed');
     message.reply(`Deleted all closed Tickets, Total: ${deleteCount}`);
