@@ -10,6 +10,9 @@ module.exports = class TiketConfig extends Model {
            guildId: {
             type: DataTypes.STRING
            },
+           deleteTicketsChannelId: {
+                type: DataTypes.STRING,
+            },
            roles: {
             type: DataTypes.STRING
            },

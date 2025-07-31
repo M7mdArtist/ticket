@@ -1,5 +1,5 @@
 require('dotenv').config();
-const { Client, GatewayIntentBits, Partials, PermissionsBitField } = require('discord.js');
+const { Client, GatewayIntentBits, Partials, PermissionsBitField, ChannelType } = require('discord.js');
 const client = new Client({ 
     intents: [
         GatewayIntentBits.Guilds,
@@ -25,6 +25,35 @@ client.once('ready', () => {
     }).catch((err) => console.log('Database connection error:', err));
 });
 
+async function deleteClosedTickets(guild, categoryId, searchText) {
+    try {
+        const category = guild.channels.cache.get(categoryId);
+        if (!category || category.type !== ChannelType.GuildCategory) {
+            return console.log('Invalid category ID or not a category channel');
+        }
+        const channels = category.children.cache.filter(channel => 
+                channel.type === ChannelType.GuildText && 
+                channel.name.includes(searchText)
+            );
+
+    let deleteCount = 0;
+    for (const[id, channel] of channels) {
+        try {
+            await channel.delete();
+            console.log(`Deleted Channel: ${channel.name}, total: ${deleteCount}`);
+            deleteCount++;
+        } catch (error) {
+            console.error(`Failed delete channel ${channel.name}:`, error);
+        }
+        
+     }
+     return deleteCount;
+    }catch (error) {
+        console.error('Error in deleteChannelsInCategoryWithText:', error);
+    }
+    
+}
+
 client.on('messageCreate', async (message) => {
     if (message.author.bot || message.channel.type === 'DM') return;
 
@@ -42,6 +71,9 @@ client.on('messageCreate', async (message) => {
             const categoryId = (await message.channel.awaitMessages({ filter, max: 1 })).first().content;
             
             const categoryChannel = client.channels.cache.get(categoryId);
+
+            await message.channel.send('Please enter the channel for the delete message command "?delete"');
+            const deleteChannelId = (await message.channel.awaitMessages({ filter, max: 1 })).first().content;
             
             await message.channel.send('Please enter all of the roles that have access to tickets (comma separated)');
             const roles = (await message.channel.awaitMessages({ filter, max: 1 })).first().content.split(/,\s*/);
@@ -57,9 +89,10 @@ client.on('messageCreate', async (message) => {
                     messageId: msgId,
                     guildId: message.guild.id,
                     roles: JSON.stringify(roles),
-                    parentId: categoryChannel.id
+                    parentId: categoryChannel.id,
+                    deleteTicketsChannelId: deleteChannelId
                 });
-                console.log('ticketConfig');
+                console.log(ticketConfig);
                 message.channel.send('Configuration saved to DB');
                 await fetchMsg.react('🎫');
             } else throw new Error('Invalid fields');
@@ -68,6 +101,15 @@ client.on('messageCreate', async (message) => {
             message.channel.send(`Error during setup: ${err.message}`);
         }
     }
+
+    if (message.content.toLowerCase() === '?delete') {
+    const ticketConfig = await TicketConfig.findOne({ where: { guildId: message.guild.id } });
+    if(!message.channel.id === ticketConfig.getDataValue("deleteTicketsChannelId")) return;
+
+    const deleteCount = await deleteClosedTickets(message.guild, ticketConfig.getDataValue('parentId'), 'closed');
+    message.reply(`Deleted all closed Tickets, Total: ${deleteCount}`);
+}
+
 });
 
 client.on('messageReactionAdd', async (reaction, user) => {
@@ -161,6 +203,7 @@ client.on('messageReactionAdd', async (reaction, user) => {
             }
         }
     }
+
 });
 
 client.login(process.env.BOT_TOKEN);
