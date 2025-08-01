@@ -20,8 +20,8 @@ client.once('ready', () => {
         console.log('Connected to DB');
         Ticket.init(db);
         TicketConfig.init(db);
-        Ticket.sync();
-        TicketConfig.sync();
+        Ticket.sync();         //add { force: true } to reset the database every time restarting the bot
+        TicketConfig.sync();   //add { force: true } to reset the database every time restarting the bot
     }).catch((err) => console.log('Database connection error:', err));
 });
 
@@ -60,20 +60,21 @@ client.on('messageCreate', async (message) => {
     if (message.content.toLowerCase() === '?setup' && message.guild.ownerId === message.author.id) {
         try {
             const filter = (m) => m.author.id === message.author.id;
-            message.channel.send("react with 🎫 to this message to open a ticket 🤙")
+            const msg = await message.channel.send("react with 🎫 to this message to open a ticket 🤙")
+            console.log(`message Id: ${msg.id}`);
             
-            await message.channel.send('Please enter the message ID for this ticket');
-            const msgId = (await message.channel.awaitMessages({ filter, max: 1 })).first().content;
+            // await message.channel.send('Please enter the message ID for this ticket');
+            // const msgId = (await message.channel.awaitMessages({ filter, max: 1 })).first().content;
             
-            const fetchMsg = await message.channel.messages.fetch(msgId);
+            const fetchMsg = await message.channel.messages.fetch(msg.id);
             
             await message.channel.send('Please enter the category ID for this ticket');
             const categoryId = (await message.channel.awaitMessages({ filter, max: 1 })).first().content;
             
             const categoryChannel = client.channels.cache.get(categoryId);
 
-            await message.channel.send('Please enter the channel for the delete message command "?delete"');
-            const deleteChannelId = (await message.channel.awaitMessages({ filter, max: 1 })).first().content;
+            // await message.channel.send('Please enter the channel for the delete message command "?delete"');
+            // const deleteChannelId = (await message.channel.awaitMessages({ filter, max: 1 })).first().content;
             
             await message.channel.send('Please enter all of the roles that have access to tickets (comma separated)');
             const roles = (await message.channel.awaitMessages({ filter, max: 1 })).first().content.split(/,\s*/);
@@ -84,13 +85,51 @@ client.on('messageCreate', async (message) => {
                         console.log(`Role ${roleId} does not exist`);
                         throw new Error(`Role ${roleId} does not exist`);
                     }
+
+
+                const currentCategory = message.channel.parent;
+
+                // if (!currentCategory || categoryChannel.type !== 'GUILD_CATEGORY') {
+                //     console.log('the channel is not in category');
+                //     message.reply('This channel is not in a category');
+                //     throw new Error('the channel is not in a category');
+                // }
+
+                const roleObjects = [];
+                    for (const roleId of roles) {
+                        const role = await message.guild.roles.fetch(roleId).catch(() => null);
+                        if (!role) throw new Error(`Role ${roleId} not found`);
+                        roleObjects.push(role);
+                         }
+
+                const deleteChannel = await message.guild.channels.create({
+                    name: 'delete-closed-tickets',
+                    type: ChannelType.GuildText,
+                    parent: message.channel.parent.id,
+                    permissionOverwrites: [
+                        {
+                            id: message.guild.id,
+                            deny: [PermissionsBitField.Flags.ViewChannel],
+                        },
+                        ...roleObjects.map(role => ({
+                            id: role.id,
+                            allow: [
+                                PermissionsBitField.Flags.ViewChannel,
+                                PermissionsBitField.Flags.SendMessages,
+                                PermissionsBitField.Flags.ReadMessageHistory
+                            ]
+                        }))
+                    ],
+            });
+                
+                deleteChannel.send('Use **"?delete"** to delete all closed tickets.');
                     
                 const ticketConfig = await TicketConfig.create({
-                    messageId: msgId,
+                    messageId: msg.id,
                     guildId: message.guild.id,
                     roles: JSON.stringify(roles),
                     parentId: categoryChannel.id,
-                    deleteTicketsChannelId: deleteChannelId
+                    deleteTicketsChannelId: deleteChannel.id
                 });
                 console.log(ticketConfig);
                 message.channel.send('Configuration saved to DB');
