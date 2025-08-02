@@ -20,8 +20,8 @@ client.once('ready', () => {
         console.log('Connected to DB');
         Ticket.init(db);
         TicketConfig.init(db);
-        Ticket.sync();         //add { force: true } to reset the database every time restarting the bot
-        TicketConfig.sync();   //add { force: true } to reset the database every time restarting the bot
+        Ticket.sync({ force: true });         //add { force: true } to reset the database every time restarting the bot
+        TicketConfig.sync({ force: true });   //add { force: true } to reset the database every time restarting the bot
     }).catch((err) => console.log('Database connection error:', err));
 });
 
@@ -63,18 +63,12 @@ client.on('messageCreate', async (message) => {
             const msg = await message.channel.send("react with 🎫 to this message to open a ticket 🤙")
             console.log(`message Id: ${msg.id}`);
             
-            // await message.channel.send('Please enter the message ID for this ticket');
-            // const msgId = (await message.channel.awaitMessages({ filter, max: 1 })).first().content;
-            
             const fetchMsg = await message.channel.messages.fetch(msg.id);
             
             await message.channel.send('Please enter the category ID for this ticket');
             const categoryId = (await message.channel.awaitMessages({ filter, max: 1 })).first().content;
             
             const categoryChannel = client.channels.cache.get(categoryId);
-
-            // await message.channel.send('Please enter the channel for the delete message command "?delete"');
-            // const deleteChannelId = (await message.channel.awaitMessages({ filter, max: 1 })).first().content;
             
             await message.channel.send('Please enter all of the roles that have access to tickets (comma separated)');
             const roles = (await message.channel.awaitMessages({ filter, max: 1 })).first().content.split(/,\s*/);
@@ -88,12 +82,6 @@ client.on('messageCreate', async (message) => {
 
 
                 const currentCategory = message.channel.parent;
-
-                // if (!currentCategory || categoryChannel.type !== 'GUILD_CATEGORY') {
-                //     console.log('the channel is not in category');
-                //     message.reply('This channel is not in a category');
-                //     throw new Error('the channel is not in a category');
-                // }
 
                 const roleObjects = [];
                     for (const roleId of roles) {
@@ -157,10 +145,13 @@ client.on('messageCreate', async (message) => {
 client.on('messageReactionAdd', async (reaction, user) => {
     if (user.bot) return;
     
+    let canOpen = true;
+
     // Handle ticket creation reaction
     if (reaction.emoji.name === '🎫') {
         const ticketConfig = await TicketConfig.findOne({ where: { messageId: reaction.message.id } });
-        if (ticketConfig) {
+        if (ticketConfig && canOpen === true) {
+            canOpen = false;
             await reaction.users.remove(user.id).catch(console.error);
             const findTicket = await Ticket.findOne({ where: {authorId: user.id, resolved: false } });
             if (findTicket) {
@@ -210,8 +201,10 @@ client.on('messageReactionAdd', async (reaction, user) => {
                     console.log(err);
                 }
             }
+            canOpen = true;
         } else {
             console.log('No ticket config found');
+            canOpen = true;
         }
     } 
     // Handle ticket closing reaction
