@@ -145,13 +145,11 @@ client.on('messageCreate', async (message) => {
 client.on('messageReactionAdd', async (reaction, user) => {
     if (user.bot) return;
     
-    let canOpen = true;
 
     // Handle ticket creation reaction
     if (reaction.emoji.name === '🎫') {
         const ticketConfig = await TicketConfig.findOne({ where: { messageId: reaction.message.id } });
-        if (ticketConfig && canOpen === true) {
-            canOpen = false;
+        if (ticketConfig) {
             await reaction.users.remove(user.id).catch(console.error);
             const findTicket = await Ticket.findOne({ where: {authorId: user.id, resolved: false } });
             if (findTicket) {
@@ -201,10 +199,8 @@ client.on('messageReactionAdd', async (reaction, user) => {
                     console.log(err);
                 }
             }
-            canOpen = true;
         } else {
             console.log('No ticket config found');
-            canOpen = true;
         }
     } 
     // Handle ticket closing reaction
