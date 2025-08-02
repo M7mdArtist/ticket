@@ -20,8 +20,8 @@ client.once('ready', () => {
       console.log('Connected to DB');
       Ticket.init(db);
       TicketConfig.init(db);
-      Ticket.sync({ force: true }); //add { force: true } to reset the database every time restarting the bot
-      TicketConfig.sync({ force: true }); //add { force: true } to reset the database every time restarting the bot
+      Ticket.sync(); //add { force: true } to reset the database every time restarting the bot
+      TicketConfig.sync(); //add { force: true } to reset the database every time restarting the bot
     })
     .catch(err => console.log('Database connection error:', err));
 });
