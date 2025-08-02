@@ -20,8 +20,8 @@ client.once('ready', () => {
       console.log('Connected to DB');
       Ticket.init(db);
       TicketConfig.init(db);
-      Ticket.sync(); //add { force: true } to reset the database every time restarting the bot
-      TicketConfig.sync(); //add { force: true } to reset the database every time restarting the bot
+      Ticket.sync({ force: true }); //add { force: true } to reset the database every time restarting the bot
+      TicketConfig.sync({ force: true }); //add { force: true } to reset the database every time restarting the bot
     })
     .catch(err => console.log('Database connection error:', err));
 });
@@ -208,7 +208,7 @@ client.on('messageReactionAdd', async (reaction, user) => {
 
           const ticketId = String(ticket.getDataValue('ticketId')).padStart(4, '0');
           await channel.edit({ name: `ticket-${ticketId}` });
-        }, 1000 * 5);
+        }, 1000 * 2);
       } catch (err) {
         console.log(err);
       }
@@ -257,6 +257,9 @@ client.on('messageReactionAdd', async (reaction, user) => {
               resolved: true,
               closedMessageId: reaction.message.id,
             });
+
+            userTickets[ticket.authorId].active = false;
+            userTickets[ticket.authorId].timeout && clearTimeout(userTickets[ticket.authorId].timeout);
 
             const ticketChannel = reaction.message.channel;
             await ticketChannel.edit({ name: `${ticketChannel.name}-closed` });
