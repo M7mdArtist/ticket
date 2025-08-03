@@ -1,5 +1,5 @@
 require('dotenv').config();
-const { Client, GatewayIntentBits, Partials, PermissionsBitField, ChannelType } = require('discord.js');
+const { Client, GatewayIntentBits, Partials, PermissionsBitField, ChannelType, SlashCommandBuilder, Routes, REST } = require('discord.js');
 const client = new Client({
   intents: [
     GatewayIntentBits.Guilds,
@@ -13,15 +13,48 @@ const db = require('./database');
 const Ticket = require('./models/Ticket');
 const TicketConfig = require('./models/TicketConfig');
 
-client.once('ready', () => {
+// Define slash commands
+const commands = [
+  new SlashCommandBuilder()
+    .setName('setup')
+    .setDescription('Setup the ticket system (server owner only)')
+    .addStringOption(option =>
+      option.setName('category')
+        .setDescription('The category ID for tickets')
+        .setRequired(true)
+    )
+    .addStringOption(option =>
+      option.setName('roles')
+        .setDescription('Comma-separated role IDs that have access to tickets')
+        .setRequired(true)
+    ),
+  new SlashCommandBuilder()
+    .setName('delete')
+    .setDescription('Delete all closed tickets')
+].map(command => command.toJSON());
+
+client.once('ready', async () => {
   console.log('Bot is online');
+  
+  // Register slash commands
+  try {
+    const rest = new REST({ version: '10' }).setToken(process.env.BOT_TOKEN);
+    await rest.put(
+      Routes.applicationCommands(client.user.id),
+      { body: commands }
+    );
+    console.log('Successfully registered slash commands');
+  } catch (error) {
+    console.error('Error registering slash commands:', error);
+  }
+
   db.authenticate()
     .then(() => {
       console.log('Connected to DB');
       Ticket.init(db);
       TicketConfig.init(db);
-      Ticket.sync(); //add { force: true } to reset the database every time restarting the bot
-      TicketConfig.sync(); //add { force: true } to reset the database every time restarting the bot
+      Ticket.sync({ force: true });
+      TicketConfig.sync({ force: true });
     })
     .catch(err => console.log('Database connection error:', err));
 });
@@ -52,89 +85,108 @@ async function deleteClosedTickets(guild, categoryId, searchText) {
   }
 }
 
-client.on('messageCreate', async message => {
-  if (message.author.bot || message.channel.type === 'DM') return;
+// Handle slash commands
+client.on('interactionCreate', async interaction => {
+  if (!interaction.isCommand()) return;
 
-  if (message.content.toLowerCase() === '?setup' && message.guild.ownerId === message.author.id) {
+  if (interaction.commandName === 'setup') {
+    // Only server owner can use this command
+    if (interaction.guild.ownerId !== interaction.user.id) {
+      return interaction.reply({ content: 'Only the server owner can use this command.', ephemeral: true });
+    }
+
     try {
-      const filter = m => m.author.id === message.author.id;
-      const msg = await message.channel.send('react with 🎫 to this message to open a ticket 🤙');
+      const categoryId = interaction.options.getString('category');
+      const roles = interaction.options.getString('roles').split(/,\s*/);
+
+      await interaction.deferReply({ ephemeral: true });
+
+      const msg = await interaction.channel.send('react with 🎫 to this message to open a ticket 🤙');
       console.log(`message Id: ${msg.id}`);
 
-      const fetchMsg = await message.channel.messages.fetch(msg.id);
-
-      await message.channel.send('Please enter the category ID for this ticket');
-      const categoryId = (await message.channel.awaitMessages({ filter, max: 1 })).first().content;
+      const fetchMsg = await interaction.channel.messages.fetch(msg.id);
 
       const categoryChannel = client.channels.cache.get(categoryId);
 
-      await message.channel.send('Please enter all of the roles that have access to tickets (comma separated)');
-      const roles = (await message.channel.awaitMessages({ filter, max: 1 })).first().content.split(/,\s*/);
+      if (!categoryChannel) {
+        throw new Error('Invalid category ID');
+      }
 
-      if (fetchMsg && categoryChannel) {
-        for (const roleId of roles)
-          if (!message.guild.roles.cache.get(roleId)) {
-            console.log(`Role ${roleId} does not exist`);
-            throw new Error(`Role ${roleId} does not exist`);
-          }
-
-        const currentCategory = message.channel.parent;
-
-        const roleObjects = [];
-        for (const roleId of roles) {
-          const role = await message.guild.roles.fetch(roleId).catch(() => null);
-          if (!role) throw new Error(`Role ${roleId} not found`);
-          roleObjects.push(role);
+      for (const roleId of roles) {
+        if (!interaction.guild.roles.cache.get(roleId)) {
+          console.log(`Role ${roleId} does not exist`);
+          throw new Error(`Role ${roleId} does not exist`);
         }
+      }
 
-        const deleteChannel = await message.guild.channels.create({
-          name: 'delete-closed-tickets',
-          type: ChannelType.GuildText,
-          parent: message.channel.parent.id,
-          permissionOverwrites: [
-            {
-              id: message.guild.id,
-              deny: [PermissionsBitField.Flags.ViewChannel],
-            },
-            ...roleObjects.map(role => ({
-              id: role.id,
-              allow: [
-                PermissionsBitField.Flags.ViewChannel,
-                PermissionsBitField.Flags.SendMessages,
-                PermissionsBitField.Flags.ReadMessageHistory,
-              ],
-            })),
-          ],
-        });
+      const roleObjects = [];
+      for (const roleId of roles) {
+        const role = await interaction.guild.roles.fetch(roleId).catch(() => null);
+        if (!role) throw new Error(`Role ${roleId} not found`);
+        roleObjects.push(role);
+      }
 
-        deleteChannel.send('Use **"?delete"** to delete all closed tickets.');
+      const deleteChannel = await interaction.guild.channels.create({
+        name: 'delete-closed-tickets',
+        type: ChannelType.GuildText,
+        parent: interaction.channel.parentId,
+        permissionOverwrites: [
+          {
+            id: interaction.guild.id,
+            deny: [PermissionsBitField.Flags.ViewChannel],
+          },
+          ...roleObjects.map(role => ({
+            id: role.id,
+            allow: [
+              PermissionsBitField.Flags.ViewChannel,
+              PermissionsBitField.Flags.SendMessages,
+              PermissionsBitField.Flags.ReadMessageHistory,
+            ],
+          })),
+        ],
+      });
 
-        const ticketConfig = await TicketConfig.create({
-          messageId: msg.id,
-          guildId: message.guild.id,
-          roles: JSON.stringify(roles),
-          parentId: categoryChannel.id,
-          deleteTicketsChannelId: deleteChannel.id,
-        });
-        console.log(ticketConfig);
-        message.channel.send('Configuration saved to DB');
-        await fetchMsg.react('🎫');
-      } else throw new Error('Invalid fields');
+      deleteChannel.send('Use **/delete** to delete all closed tickets.');
+
+      const ticketConfig = await TicketConfig.create({
+        messageId: msg.id,
+        guildId: interaction.guild.id,
+        roles: JSON.stringify(roles),
+        parentId: categoryChannel.id,
+        deleteTicketsChannelId: deleteChannel.id,
+      });
+      console.log(ticketConfig);
+      
+      await fetchMsg.react('🎫');
+      await interaction.editReply({ content: 'Ticket system setup complete!' });
     } catch (err) {
       console.error('Setup error:', err);
-      message.channel.send(`Error during setup: ${err.message}`);
+      interaction.editReply({ content: `Error during setup: ${err.message}` });
     }
   }
 
-  if (message.content.toLowerCase() === '?delete') {
-    const ticketConfig = await TicketConfig.findOne({ where: { guildId: message.guild.id } });
-    if (message.channel.id !== ticketConfig.getDataValue('deleteTicketsChannelId')) return;
+  if (interaction.commandName === 'delete') {
+    try {
+      const ticketConfig = await TicketConfig.findOne({ where: { guildId: interaction.guild.id } });
+      if (!ticketConfig) {
+        return interaction.reply({ content: 'Ticket system not configured for this server.', ephemeral: true });
+      }
 
-    const deleteCount = await deleteClosedTickets(message.guild, ticketConfig.getDataValue('parentId'), 'closed');
-    if (deleteCount === 0) {
-      message.reply('There is no closed tickets to delete.');
-    } else {
-      message.reply(`Delete all closed tickets, \n **Total Tickets: ${deleteCount}**`);
+      if (interaction.channel.id !== ticketConfig.getDataValue('deleteTicketsChannelId')) {
+        return interaction.reply({ content: 'This command can only be used in the delete-closed-tickets channel.', ephemeral: true });
+      }
+
+      await interaction.deferReply();
+
+      const deleteCount = await deleteClosedTickets(interaction.guild, ticketConfig.getDataValue('parentId'), 'closed');
+      if (deleteCount === 0) {
+        await interaction.editReply('There are no closed tickets to delete.');
+      } else {
+        await interaction.editReply(`Deleted all closed tickets, \n **Total Tickets: ${deleteCount}**`);
+      }
+    } catch (error) {
+      console.error('Error in delete command:', error);
+      await interaction.editReply('An error occurred while deleting tickets.');
     }
   }
 });
