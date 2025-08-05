@@ -1,5 +1,15 @@
 require('dotenv').config();
-const { Client, GatewayIntentBits, Partials, PermissionsBitField, ChannelType, SlashCommandBuilder, Routes, REST } = require('discord.js');
+const {
+  Client,
+  GatewayIntentBits,
+  Partials,
+  PermissionsBitField,
+  ChannelType,
+  SlashCommandBuilder,
+  Routes,
+  REST,
+  ChannelManager,
+} = require('discord.js');
 const client = new Client({
   intents: [
     GatewayIntentBits.Guilds,
@@ -18,31 +28,26 @@ const commands = [
   new SlashCommandBuilder()
     .setName('setup')
     .setDescription('Setup the ticket system (server owner only)')
-    .addStringOption(option =>
-      option.setName('category')
+    .addChannelOption(option =>
+      option
+        .setName('category')
         .setDescription('The category ID for tickets')
+        .addChannelTypes(ChannelType.GuildCategory)
         .setRequired(true)
     )
     .addStringOption(option =>
-      option.setName('roles')
-        .setDescription('Comma-separated role IDs that have access to tickets')
-        .setRequired(true)
+      option.setName('roles').setDescription('Comma-separated role IDs that have access to tickets').setRequired(true)
     ),
-  new SlashCommandBuilder()
-    .setName('delete')
-    .setDescription('Delete all closed tickets')
+  new SlashCommandBuilder().setName('delete').setDescription('Delete all closed tickets'),
 ].map(command => command.toJSON());
 
 client.once('ready', async () => {
   console.log('Bot is online');
-  
+
   // Register slash commands
   try {
     const rest = new REST({ version: '10' }).setToken(process.env.BOT_TOKEN);
-    await rest.put(
-      Routes.applicationCommands(client.user.id),
-      { body: commands }
-    );
+    await rest.put(Routes.applicationCommands(client.user.id), { body: commands });
     console.log('Successfully registered slash commands');
   } catch (error) {
     console.error('Error registering slash commands:', error);
@@ -96,7 +101,7 @@ client.on('interactionCreate', async interaction => {
     }
 
     try {
-      const categoryId = interaction.options.getString('category');
+      const categoryId = interaction.options.getChannel('category').id;
       const roles = interaction.options.getString('roles').split(/,\s*/);
 
       await interaction.deferReply({ ephemeral: true });
@@ -156,7 +161,7 @@ client.on('interactionCreate', async interaction => {
         deleteTicketsChannelId: deleteChannel.id,
       });
       console.log(ticketConfig);
-      
+
       await fetchMsg.react('🎫');
       await interaction.editReply({ content: 'Ticket system setup complete!' });
     } catch (err) {
@@ -173,7 +178,10 @@ client.on('interactionCreate', async interaction => {
       }
 
       if (interaction.channel.id !== ticketConfig.getDataValue('deleteTicketsChannelId')) {
-        return interaction.reply({ content: 'This command can only be used in the delete-closed-tickets channel.', ephemeral: true });
+        return interaction.reply({
+          content: 'This command can only be used in the delete-closed-tickets channel.',
+          ephemeral: true,
+        });
       }
 
       await interaction.deferReply();
