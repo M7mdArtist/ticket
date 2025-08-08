@@ -9,6 +9,7 @@ const {
   Routes,
   REST,
   ChannelManager,
+  EmbedBuilder,
 } = require('discord.js');
 const client = new Client({
   intents: [
@@ -184,18 +185,48 @@ client.on('interactionCreate', async interaction => {
         });
       }
 
-      await interaction.deferReply({ ephemeral: true });
+      // await interaction.deferReply();
 
       const deleteCount = await deleteClosedTickets(interaction.guild, ticketConfig.getDataValue('parentId'), 'closed');
       if (deleteCount === 0) {
-        await interaction.editReply('There are no closed tickets to delete.');
+        await interaction.reply({ content: 'There are no closed tickets to delete.', ephemeral: true });
       } else {
-        await interaction.editReply(`Deleted all closed tickets, \n **Total Tickets: ${deleteCount}**`);
+        const date = new Date();
+        const unixNow = Math.floor(date.getTime() / 1000);
+
+        const deleteEmbed = new EmbedBuilder()
+          .setTitle('Delete Info')
+          .addFields(
+            { name: 'deleted:', value: `${deleteCount} tickets`, inline: true },
+            { name: 'used by:', value: interaction.user.tag, inline: true },
+            { name: 'date:', value: `<t:${unixNow}:D>`, inline: true }
+          );
+
+        interaction.reply({ embeds: [deleteEmbed] });
       }
     } catch (error) {
       console.error('Error in delete command:', error);
-      await interaction.editReply('An error occurred while deleting tickets.');
+      await interaction.reply({ content: 'An error occurred while deleting tickets.', ephemeral: true });
     }
+  }
+});
+
+client.on('messageCreate', async message => {
+  if (message.author.bot || message.channel.type === 'DM') return;
+
+  const ticketConfig = await TicketConfig.findOne({ where: { deleteTicketsChannelId: message.channel.id } });
+
+  try {
+    if (!ticketConfig) {
+      console.log('there is no ticket config for this channel');
+      return;
+    }
+
+    if (message.channel.id === ticketConfig.deleteTicketsChannelId) {
+      await message.delete().catch(console.error);
+    }
+  } catch (error) {
+    console.error('error in message delete handler', error);
   }
 });
 
