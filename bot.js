@@ -184,7 +184,7 @@ client.on('interactionCreate', async interaction => {
         });
       }
 
-      await interaction.deferReply();
+      await interaction.deferReply({ ephemeral: true });
 
       const deleteCount = await deleteClosedTickets(interaction.guild, ticketConfig.getDataValue('parentId'), 'closed');
       if (deleteCount === 0) {
