@@ -40,6 +40,7 @@ const commands = [
       option.setName('roles').setDescription('Comma-separated role IDs that have access to tickets').setRequired(true)
     ),
   new SlashCommandBuilder().setName('delete').setDescription('Delete all closed tickets'),
+  new SlashCommandBuilder().setName('claim').setDescription('Claim the ticket'),
 ].map(command => command.toJSON());
 
 client.once('ready', async () => {
@@ -209,6 +210,62 @@ client.on('interactionCreate', async interaction => {
       await interaction.reply({ content: 'An error occurred while deleting tickets.', ephemeral: true });
     }
   }
+
+  if (interaction.commandName === 'claim') {
+    try {
+      // Find ticket for the current channel
+      const ticket = await Ticket.findOne({
+        where: {
+          channelId: interaction.channel.id,
+          resolved: false,
+          claimed: false,
+        },
+      });
+
+      if (!ticket) {
+        return interaction.reply({
+          content: 'This is not a valid ticket channel or the ticket is already closed/claimed',
+          ephemeral: true,
+        });
+      }
+
+      let ticketMsg;
+      const channel = interaction.channel;
+      const messages = await channel.messages.fetch({ limit: 10 });
+      ticketMsg = messages.find(m => m.content.includes('🎫 This ticket was opened by'));
+
+      if (!ticketMsg) {
+        return interaction.reply({
+          content: 'Could not find the ticket message.',
+          ephemeral: true,
+        });
+      }
+
+      await ticketMsg.edit(
+        `## 🎫 This ticket was opened by <@${ticket.authorId}> \n > 💾 Your ticket will be saved. \n React with this emoji 🔏 to close the ticket.\n Ticket claimed by: ${interaction.user}`
+      );
+
+      await ticket.update({
+        claimed: true,
+        claimerId: interaction.user.id,
+      });
+
+      console.log(ticket);
+
+      await interaction.reply({
+        content: 'You have claimed this ticket!',
+        ephemeral: true,
+      });
+    } catch (error) {
+      console.error('Error claiming ticket:', error);
+      if (!interaction.replied) {
+        await interaction.reply({
+          content: 'An error occurred while claiming the ticket.',
+          ephemeral: true,
+        });
+      }
+    }
+  }
 });
 
 client.on('messageCreate', async message => {
@@ -284,17 +341,19 @@ client.on('messageReactionAdd', async (reaction, user) => {
             ],
           });
 
-          const msg = await channel.send(
-            `## 🎫 This ticket was opened by ${user} \n > 💾 Your ticket will be saved. \n React with this emoji 🔏 to close the ticket.`
+          // Save the ticket message to userTickets for global access
+          const ticketMsg = await channel.send(
+            `## 🎫 This ticket was opened by ${user} \n > 💾 Your ticket will be saved. \n React with this emoji 🔏 to close the ticket.\n Ticket claimed by: not claimed`
           );
-          await msg.react('🔏');
+          await ticketMsg.react('🔏');
 
           let ticket = await Ticket.create({
             authorId: user.id,
             channelId: channel.id,
             guildId: reaction.message.guild.id,
             resolved: false,
-            closedMessageId: msg.id,
+            closedMessageId: ticketMsg.id,
+            claimed: false,
           });
 
           const ticketId = String(ticket.getDataValue('ticketId')).padStart(4, '0');
