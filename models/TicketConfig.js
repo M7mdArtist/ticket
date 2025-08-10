@@ -1,27 +1,36 @@
 const { DataTypes, Model } = require('sequelize');
 
 module.exports = class TiketConfig extends Model {
-    static init(sequelize){
-        return super.init({
-           messageId: {
-            type: DataTypes.STRING,
-            primaryKey: true
-           },
-           guildId: {
-            type: DataTypes.STRING
-           },
-           deleteTicketsChannelId: {
-                type: DataTypes.STRING,
-            },
-           roles: {
-            type: DataTypes.STRING
-           },
-           parentId: {
-            type: DataTypes.STRING
-           }
-        }, {
-            tableName: 'TicketConfigs',
-            sequelize
-        })
-    }
-}
+	static init(sequelize) {
+		return super.init(
+			{
+				messageId: {
+					type: DataTypes.STRING,
+					primaryKey: true,
+				},
+				guildId: {
+					type: DataTypes.STRING,
+				},
+				deleteTicketsChannelId: {
+					type: DataTypes.STRING,
+				},
+				roles: {
+					type: DataTypes.STRING,
+				},
+				parentId: {
+					type: DataTypes.STRING,
+				},
+				logs: {
+					type: DataTypes.BOOLEAN,
+				},
+				logsChannelId: {
+					type: DataTypes.STRING,
+				},
+			},
+			{
+				tableName: 'TicketConfigs',
+				sequelize,
+			}
+		);
+	}
+};
