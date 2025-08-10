@@ -60,8 +60,8 @@ client.once('ready', async () => {
       console.log('Connected to DB');
       Ticket.init(db);
       TicketConfig.init(db);
-      Ticket.sync({ force: true });
-      TicketConfig.sync({ force: true });
+      Ticket.sync();
+      TicketConfig.sync();
     })
     .catch(err => console.log('Database connection error:', err));
 });
@@ -222,40 +222,51 @@ client.on('interactionCreate', async interaction => {
         },
       });
 
-      if (!ticket) {
-        return interaction.reply({
-          content: 'This is not a valid ticket channel or the ticket is already closed/claimed',
+      const ticketConfig = await TicketConfig.findOne({ where: { guildId: interaction.guild.id } });
+      const allowedRoles = JSON.parse(ticketConfig.getDataValue('roles'));
+      const isAllowed = interaction.member.roles.cache.some(role => allowedRoles.includes(role.id));
+
+      if (!isAllowed) {
+        interaction.reply({
+          content: `you don't have permission to use this command`,
+          ephemeral: true,
+        });
+      } else {
+        if (!ticket) {
+          return interaction.reply({
+            content: 'This is not a valid ticket channel or the ticket is already closed/claimed',
+            ephemeral: true,
+          });
+        }
+
+        let ticketMsg;
+        const channel = interaction.channel;
+        const messages = await channel.messages.fetch({ limit: 10 });
+        ticketMsg = messages.find(m => m.content.includes('🎫 This ticket was opened by'));
+
+        if (!ticketMsg) {
+          return interaction.reply({
+            content: 'Could not find the ticket message.',
+            ephemeral: true,
+          });
+        }
+
+        await ticketMsg.edit(
+          `## 🎫 This ticket was opened by <@${ticket.authorId}> \n > 💾 Your ticket will be saved. \n React with this emoji 🔏 to close the ticket.\n Ticket claimed by: ${interaction.user}`
+        );
+
+        await ticket.update({
+          claimed: true,
+          claimerId: interaction.user.id,
+        });
+
+        console.log(ticket);
+
+        await interaction.reply({
+          content: 'You have claimed this ticket!',
           ephemeral: true,
         });
       }
-
-      let ticketMsg;
-      const channel = interaction.channel;
-      const messages = await channel.messages.fetch({ limit: 10 });
-      ticketMsg = messages.find(m => m.content.includes('🎫 This ticket was opened by'));
-
-      if (!ticketMsg) {
-        return interaction.reply({
-          content: 'Could not find the ticket message.',
-          ephemeral: true,
-        });
-      }
-
-      await ticketMsg.edit(
-        `## 🎫 This ticket was opened by <@${ticket.authorId}> \n > 💾 Your ticket will be saved. \n React with this emoji 🔏 to close the ticket.\n Ticket claimed by: ${interaction.user}`
-      );
-
-      await ticket.update({
-        claimed: true,
-        claimerId: interaction.user.id,
-      });
-
-      console.log(ticket);
-
-      await interaction.reply({
-        content: 'You have claimed this ticket!',
-        ephemeral: true,
-      });
     } catch (error) {
       console.error('Error claiming ticket:', error);
       if (!interaction.replied) {
