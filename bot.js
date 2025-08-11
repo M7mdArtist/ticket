@@ -196,23 +196,26 @@ client.on('interactionCreate', async (interaction) => {
 
 	if (interaction.commandName === 'delete') {
 		try {
+			await interaction.deferReply({ ephemeral: true });
 			const ticketConfig = await TicketConfig.findOne({ where: { guildId: interaction.guild.id } });
 			if (!ticketConfig) {
-				return interaction.reply({ content: 'Ticket system not configured for this server.', ephemeral: true });
+				return interaction.editReply({ content: 'Ticket system not configured for this server.' });
 			}
 
 			if (interaction.channel.id !== ticketConfig.getDataValue('deleteTicketsChannelId')) {
-				return interaction.reply({
+				return interaction.editReply({
 					content: 'This command can only be used in the delete-closed-tickets channel.',
-					ephemeral: true,
 				});
 			}
 
-			// await interaction.deferReply();
+			await interaction.editReply({
+				content: '⏳ Deleting closed tickets...',
+				embeds: [],
+			});
 
 			const deleteCount = await deleteClosedTickets(interaction.guild, ticketConfig.getDataValue('parentId'), 'closed');
 			if (deleteCount === 0) {
-				await interaction.reply({ content: 'There are no closed tickets to delete.', ephemeral: true });
+				await interaction.editReply({ content: 'There are no closed tickets to delete.', ephemeral: true });
 			} else {
 				const date = new Date();
 				const unixNow = Math.floor(date.getTime() / 1000);
@@ -221,15 +224,20 @@ client.on('interactionCreate', async (interaction) => {
 					.setTitle('Delete Info')
 					.addFields(
 						{ name: 'deleted:', value: `${deleteCount} tickets`, inline: true },
-						{ name: 'used by:', value: interaction.user.tag, inline: true },
+						{ name: 'used by:', value: `${interaction.user}`, inline: true },
 						{ name: 'date:', value: `<t:${unixNow}:D>`, inline: true }
 					);
 
-				interaction.reply({ embeds: [deleteEmbed] });
+				interaction.editReply({
+					content: 'All closed tickets deleted successfully',
+				});
+				interaction.channel.send({
+					embeds: [deleteEmbed],
+				});
 			}
 		} catch (error) {
 			console.error('Error in delete command:', error);
-			await interaction.reply({ content: 'An error occurred while deleting tickets.', ephemeral: true });
+			await interaction.editReply({ content: 'An error occurred while deleting tickets.', ephemeral: true });
 		}
 	}
 
