@@ -10,13 +10,13 @@ export default {
         .setName('channel')
         .setDescription('Chose the channel to start the logs')
         .addChannelTypes(ChannelType.GuildText)
-        .setRequired(true)
+        .setRequired(false)
     ),
 
   async execute(interaction, client) {
     try {
       const ticketConfig = await TicketConfig.findOne({ where: { logs: false, guildId: interaction.guild.id } });
-      const channelId = interaction.options.getChannel('channel').id;
+      const channel = interaction.options.getChannel('channel') || interaction.channel;
 
       if (!ticketConfig) {
         interaction.reply({
@@ -32,10 +32,10 @@ export default {
         if (ticketConfig) {
           await ticketConfig.update({
             logs: true,
-            logsChannelId: channelId,
+            logsChannelId: channel.id,
           });
           interaction.reply({
-            content: `logs channel set to <#${channelId}>`,
+            content: `logs channel set to <#${channel.id}>`,
             ephemeral: true,
           });
         }
