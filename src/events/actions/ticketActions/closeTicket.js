@@ -1,5 +1,5 @@
-import Ticket from '../../../database/models/Ticket.js';
-import TicketConfig from '../../../database/models/TicketConfig.js';
+import Ticket from '../../../../database/models/Ticket.js';
+import TicketConfig from '../../../../database/models/TicketConfig.js';
 import { EmbedBuilder } from 'discord.js';
 
 export default async function closeTicket(reaction, user, userTickets) {

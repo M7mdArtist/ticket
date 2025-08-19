@@ -1,7 +1,7 @@
 import client from '../clientLoader.js';
 import userTickets from '../userTickets.js';
-import createTicket from './ticketActions/createTicket.js';
-import closeTicket from './ticketActions/closeTicket.js';
+import createTicket from './actions/ticketActions/createTicket.js';
+import closeTicket from './actions/ticketActions/closeTicket.js';
 
 export default {
   name: 'messageReactionAdd', // required for loadEvents.js

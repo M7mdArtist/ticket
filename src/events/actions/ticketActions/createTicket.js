@@ -1,5 +1,5 @@
-import Ticket from '../../../database/models/Ticket.js';
-import TicketConfig from '../../../database/models/TicketConfig.js';
+import Ticket from '../../../../database/models/Ticket.js';
+import TicketConfig from '../../../../database/models/TicketConfig.js';
 import { PermissionsBitField, EmbedBuilder } from 'discord.js';
 
 export default async function createTicket(reaction, user, userTickets) {
