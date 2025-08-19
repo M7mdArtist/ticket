@@ -23,8 +23,8 @@ await db.authenticate();
 console.log('Connected to DB');
 Ticket.init(db);
 TicketConfig.init(db);
-await Ticket.sync();
-await TicketConfig.sync();
+await Ticket.sync({ force: true });
+await TicketConfig.sync({ force: true });
 
 // Load handlers
 await loadEvents(client);
