@@ -55,34 +55,34 @@ export default {
         roleObjects.push(role);
       }
 
-      const deleteChannel = await interaction.guild.channels.create({
-        name: 'delete-closed-tickets',
-        type: ChannelType.GuildText,
-        parent: interaction.channel.parentId,
-        permissionOverwrites: [
-          {
-            id: interaction.guild.id,
-            deny: [PermissionsBitField.Flags.ViewChannel],
-          },
-          ...roleObjects.map(role => ({
-            id: role.id,
-            allow: [
-              PermissionsBitField.Flags.ViewChannel,
-              PermissionsBitField.Flags.SendMessages,
-              PermissionsBitField.Flags.ReadMessageHistory,
-            ],
-          })),
-        ],
-      });
+      // const deleteChannel = await interaction.guild.channels.create({
+      //   name: 'delete-closed-tickets',
+      //   type: ChannelType.GuildText,
+      //   parent: interaction.channel.parentId,
+      //   permissionOverwrites: [
+      //     {
+      //       id: interaction.guild.id,
+      //       deny: [PermissionsBitField.Flags.ViewChannel],
+      //     },
+      //     ...roleObjects.map(role => ({
+      //       id: role.id,
+      //       allow: [
+      //         PermissionsBitField.Flags.ViewChannel,
+      //         PermissionsBitField.Flags.SendMessages,
+      //         PermissionsBitField.Flags.ReadMessageHistory,
+      //       ],
+      //     })),
+      //   ],
+      // });
 
-      deleteChannel.send('Use **/delete** to delete all closed tickets.');
+      // deleteChannel.send('Use **/delete** to delete all closed tickets.');
 
       const ticketConfig = await TicketConfig.create({
         messageId: msg.id,
         guildId: interaction.guild.id,
         roles: JSON.stringify(roles),
         parentId: categoryChannel.id,
-        deleteTicketsChannelId: deleteChannel.id,
+        deleteTicketsChannel: false,
         logs: false,
       });
       console.log(ticketConfig);

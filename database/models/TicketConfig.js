@@ -11,6 +11,9 @@ export default class TicketConfig extends Model {
         guildId: {
           type: DataTypes.STRING,
         },
+        deleteTicketsChannel: {
+          type: DataTypes.BOOLEAN,
+        },
         deleteTicketsChannelId: {
           type: DataTypes.STRING,
         },

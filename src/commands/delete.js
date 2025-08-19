@@ -45,7 +45,9 @@ export default {
         });
       }
 
-      if (interaction.channel.id !== ticketConfig.getDataValue('deleteTicketsChannelId')) {
+      if (!ticketConfig.getDataValue('deleteTicketsChannel')) {
+        return interaction.editReply('Delete closed ticket channel is not configured yet.');
+      } else if (interaction.channel.id !== ticketConfig.getDataValue('deleteTicketsChannelId')) {
         return interaction.editReply({
           content: 'This command can only be used in the delete-closed-tickets channel.',
         });
