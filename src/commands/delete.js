@@ -1,5 +1,6 @@
 import { SlashCommandBuilder, ChannelType, EmbedBuilder } from 'discord.js';
 import TicketConfig from '../../database/models/TicketConfig.js';
+import Ticket from '../../database/models/Ticket.js';
 
 export default {
   data: new SlashCommandBuilder().setName('delete').setDescription('Delete all closed tickets'),
@@ -32,7 +33,7 @@ export default {
     }
   },
 
-  async execute(interaction, client) {
+  async execute(interaction) {
     try {
       await interaction.deferReply({ ephemeral: true });
 
@@ -43,6 +44,40 @@ export default {
         return interaction.editReply({
           content: 'Ticket system not configured for this server.',
         });
+      }
+
+      const ticket = await Ticket.findOne({ where: { channelId: interaction.channel.id } });
+      if (ticket) {
+        const roles = JSON.parse(ticketConfig.getDataValue('roles'));
+        const isAllowed = interaction.member.roles.cache.some(role => roles.includes(role.id));
+        if (!isAllowed) {
+          return interaction.reply({
+            content: `You don't have permission to use this command`,
+            ephemeral: true,
+          });
+        } else {
+          await interaction.editReply('OK!');
+          await interaction.channel.send(`deleting this ticket\nby a command from: <@${interaction.user.id}>`);
+
+          if (ticketConfig && ticket.getDataValue('logId')) {
+            const logsChannel = await interaction.channel.guild.channels.fetch(ticketConfig.logsChannelId);
+            const logMsg = await logsChannel.messages.fetch(ticket.getDataValue('logId'));
+            const embed = logMsg.embeds[0];
+            const newEmbed = new EmbedBuilder().setTitle(embed.title).setColor('#A0041E');
+            embed.fields.forEach(field => {
+              newEmbed.addFields(
+                field.name === 'status:' ? { name: 'status:', value: 'Closed 🔏', inline: field.inline } : field
+              );
+            });
+            await logMsg.edit({ embeds: [newEmbed] });
+          }
+
+          setTimeout(() => {
+            interaction.channel.delete();
+          }, 5000);
+
+          return;
+        }
       }
 
       if (!ticketConfig.getDataValue('deleteTicketsChannel')) {
