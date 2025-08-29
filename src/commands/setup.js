@@ -17,7 +17,7 @@ export default {
     ),
 
   async execute(interaction, client) {
-    if (!interaction.guild.ownerId === interaction.user.id) {
+    if (interaction.guild.ownerId !== interaction.user.id) {
       return interaction.reply({
         content: 'Only server owner👑 can use this command',
         ephemeral: true,

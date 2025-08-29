@@ -1,9 +1,7 @@
 import { SlashCommandBuilder } from 'discord.js';
-import TicketConfig from '../../database/models/TicketConfig.js';
+import TicketConfig from '../../../../database/models/TicketConfig.js';
 
 export default {
-  data: new SlashCommandBuilder().setName('stop-logs').setDescription('stop logging the tickets'),
-
   async execute(interaction, client) {
     try {
       const ticketConfig = await TicketConfig.findOne({ where: { logs: true, guildId: interaction.guild.id } });

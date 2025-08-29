@@ -1,17 +1,8 @@
-import { SlashCommandBuilder } from 'discord.js';
-import TicketConfig from '../../database/models/TicketConfig.js';
+import TicketConfig from '../../../../database/models/TicketConfig.js';
 
 export default {
-  data: new SlashCommandBuilder()
-    .setName('stop-delete-channel')
-    .setDescription('Stops the delete closed ticket channel.'),
-
   async execute(interaction) {
     const ticketConfig = await TicketConfig.findOne({ where: { guildId: interaction.guild.id } });
-
-    if (!ticketConfig) {
-      return interaction.reply({ content: 'The ticket system is not configured yet.', ephemeral: true });
-    }
 
     const roles = JSON.parse(ticketConfig.getDataValue('roles'));
     const isAllowed = interaction.member.roles.cache.some(role => roles.includes(role.id));
@@ -23,7 +14,7 @@ export default {
     }
 
     if (!ticketConfig.getDataValue('deleteTicketsChannel')) {
-      return interaction.reply({ content: 'There is no delete channel to stop.', ephemeral: true });
+      return interaction.editReply({ content: 'There is no delete channel to stop.', ephemeral: true });
     }
 
     await ticketConfig.update({
@@ -31,6 +22,6 @@ export default {
       deleteTicketsChannelId: null,
     });
 
-    return interaction.reply({ content: 'Delete channel stopped.', ephemeral: true });
+    return interaction.editReply({ content: 'Delete channel stopped.', ephemeral: true });
   },
 };

@@ -1,18 +1,7 @@
 import { SlashCommandBuilder, ChannelType } from 'discord.js';
-import TicketConfig from '../../database/models/TicketConfig.js';
+import TicketConfig from '../../../../database/models/TicketConfig.js';
 
 export default {
-  data: new SlashCommandBuilder()
-    .setName('set-logs')
-    .setDescription('Start the logs in an existing channel')
-    .addChannelOption(option =>
-      option
-        .setName('channel')
-        .setDescription('Chose the channel to start the logs')
-        .addChannelTypes(ChannelType.GuildText)
-        .setRequired(false)
-    ),
-
   async execute(interaction, client) {
     try {
       const ticketConfig = await TicketConfig.findOne({ where: { logs: false, guildId: interaction.guild.id } });

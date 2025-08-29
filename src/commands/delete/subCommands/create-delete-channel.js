@@ -1,24 +1,13 @@
 import { SlashCommandBuilder, ChannelType, PermissionsBitField } from 'discord.js';
-import TicketConfig from '../../database/models/TicketConfig.js';
+import TicketConfig from '../../../../database/models/TicketConfig.js';
 
 export default {
-  data: new SlashCommandBuilder()
-    .setName('create-delete-channel')
-    .setDescription('Creates a channel to delete all closed tickets')
-    .addChannelOption(option =>
-      option
-        .setName('category')
-        .setDescription('Choose the category to create the channel in.')
-        .addChannelTypes(ChannelType.GuildCategory)
-        .setRequired(true)
-    ),
-
   async execute(interaction) {
     try {
       // Fetch ticket config
       const ticketConfig = await TicketConfig.findOne({ where: { guildId: interaction.guild.id } });
       if (!ticketConfig) {
-        return interaction.reply({
+        return interaction.editReply({
           content: 'Ticket system not configured.\nUse **/setup** first.',
           ephemeral: true,
         });
@@ -27,16 +16,11 @@ export default {
       // Get allowed roles
       const roles = JSON.parse(ticketConfig.getDataValue('roles'));
       const isAllowed = interaction.member.roles.cache.some(role => roles.includes(role.id));
-      if (!isAllowed) {
-        return interaction.reply({
-          content: `You don't have permission to use this command`,
-          ephemeral: true,
-        });
-      }
+      if (!isAllowed) return interaction.editReply(`You don't have permission to use this command`);
 
       // Check if delete channel already exists
       if (ticketConfig.deleteTicketsChannel) {
-        return interaction.reply({
+        return interaction.editReply({
           content: 'There is already a delete channel!',
           ephemeral: true,
         });
@@ -45,7 +29,7 @@ export default {
       // Get the category to create the channel in
       const category = interaction.options.getChannel('category');
       if (!category || category.type !== ChannelType.GuildCategory) {
-        return interaction.reply({ content: 'Invalid category selected.', ephemeral: true });
+        return interaction.editReply({ content: 'Invalid category selected.', ephemeral: true });
       }
 
       // Fetch role objects
@@ -86,7 +70,7 @@ export default {
         deleteTicketsChannelId: deleteChannel.id,
       });
 
-      await interaction.reply({
+      await interaction.editReply({
         content: `Delete channel created successfully: <#${deleteChannel.id}>`,
         ephemeral: true,
       });
@@ -95,7 +79,7 @@ export default {
     } catch (error) {
       console.error('Error creating delete channel:', error);
       if (!interaction.replied) {
-        await interaction.reply({ content: 'Failed to create delete channel.', ephemeral: true });
+        await interaction.editReply({ content: 'Failed to create delete channel.', ephemeral: true });
       }
     }
   },

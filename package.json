@@ -4,8 +4,9 @@
   "type": "module",
   "main": "src/index.js",
   "scripts": {
-    "start": "node bot.js",
-    "dev": "nodemon bot.js"
+    "start": "node src/index.js",
+    "deploy": "node src/utils/deploy-commands.js",
+    "remove": "node src/utils/remove-all-client-commands.js && node src/utils/remove-all-commands.js"
   },
   "keywords": [],
   "author": "",

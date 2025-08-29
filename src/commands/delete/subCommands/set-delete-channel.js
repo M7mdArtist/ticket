@@ -1,18 +1,6 @@
-import { SlashCommandBuilder, ChannelType } from 'discord.js';
-import TicketConfig from '../../database/models/TicketConfig.js';
+import TicketConfig from '../../../../database/models/TicketConfig.js';
 
 export default {
-  data: new SlashCommandBuilder()
-    .setName('set-delete-channel')
-    .setDescription('sets the delete channel for an existing channel')
-    .addChannelOption(option =>
-      option
-        .setName('channel')
-        .setDescription('Chose the channel. "leave blank for this channel"')
-        .addChannelTypes(ChannelType.GuildText)
-        .setRequired(false)
-    ),
-
   async execute(interaction) {
     try {
       const ticketConfig = await TicketConfig.findOne({ where: { guildId: interaction.guild.id } });
@@ -34,8 +22,6 @@ export default {
       }
 
       if (!ticketConfig.getDataValue('deleteTicketsChannel')) {
-        await interaction.deferReply({ ephemeral: true });
-
         const channel = interaction.options.getChannel('channel') || interaction.channel;
 
         await ticketConfig.update({

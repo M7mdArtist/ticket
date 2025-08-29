@@ -1,11 +1,9 @@
-import { SlashCommandBuilder, EmbedBuilder } from 'discord.js';
-import Ticket from '../../database/models/Ticket.js';
-import TicketConfig from '../../database/models/TicketConfig.js';
+import { EmbedBuilder } from 'discord.js';
+import Ticket from '../../../../database/models/Ticket.js';
+import TicketConfig from '../../../../database/models/TicketConfig.js';
 
 export default {
-  data: new SlashCommandBuilder().setName('claim').setDescription('Claim the ticket'),
-
-  async execute(interaction, client) {
+  async execute(interaction) {
     try {
       // Find ticket for the current channel
       const ticket = await Ticket.findOne({

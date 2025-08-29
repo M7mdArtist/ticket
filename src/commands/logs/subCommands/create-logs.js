@@ -1,19 +1,8 @@
 import { SlashCommandBuilder, ChannelType, PermissionsBitField } from 'discord.js';
-import TicketConfig from '../../database/models/TicketConfig.js';
+import TicketConfig from '../../../../database/models/TicketConfig.js';
 
 export default {
-  data: new SlashCommandBuilder()
-    .setName('create-logs')
-    .setDescription('Creates a logs channel')
-    .addChannelOption(option =>
-      option
-        .setName('category')
-        .setDescription('Chose the category to create the logs channel')
-        .addChannelTypes(ChannelType.GuildCategory)
-        .setRequired(true)
-    ),
-
-  async execute(interaction, client) {
+  async execute(interaction) {
     try {
       const ticketConfig = await TicketConfig.findOne({ where: { logs: false, guildId: interaction.guild.id } });
       const categoryId = interaction.options.getChannel('category').id;

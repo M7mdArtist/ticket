@@ -1,10 +1,8 @@
-import { SlashCommandBuilder, EmbedBuilder } from 'discord.js';
-import Ticket from '../../database/models/Ticket.js';
-import TicketConfig from '../../database/models/TicketConfig.js';
+import { EmbedBuilder } from 'discord.js';
+import Ticket from '../../../../database/models/Ticket.js';
+import TicketConfig from '../../../../database/models/TicketConfig.js';
 
 export default {
-  data: new SlashCommandBuilder().setName('unclaim').setDescription('unclaim the ticket'),
-
   async execute(interaction) {
     try {
       const ticketConfig = await TicketConfig.findOne({ where: { guildId: interaction.guild.id } });

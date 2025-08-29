@@ -1,7 +1,7 @@
 export default {
   name: 'interactionCreate',
   async execute(interaction, client) {
-    if (!interaction.isCommand()) return;
+    if (!interaction.isChatInputCommand()) return;
 
     const command = client.commands.get(interaction.commandName);
     if (!command) return;
@@ -9,9 +9,17 @@ export default {
     try {
       await command.execute(interaction, client);
     } catch (err) {
-      console.error(err);
-      if (!interaction.replied) {
-        await interaction.reply({ content: 'There was an error executing this command.', ephemeral: true });
+      console.error(`Error executing ${interaction.commandName}:`, err);
+
+      if (!interaction.replied && !interaction.deferred) {
+        await interaction.reply({
+          content: 'There was an error executing this command.',
+          ephemeral: true,
+        });
+      } else {
+        await interaction.editReply({
+          content: 'There was an error executing this command.',
+        });
       }
     }
   },
