@@ -8,6 +8,9 @@ export default class TicketConfig extends Model {
           type: DataTypes.STRING,
           primaryKey: true,
         },
+        channelId: {
+          type: DataTypes.STRING,
+        },
         guildId: {
           type: DataTypes.STRING,
         },

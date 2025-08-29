@@ -79,6 +79,7 @@ export default {
 
       const ticketConfig = await TicketConfig.create({
         messageId: msg.id,
+        channelId: interaction.channel.id,
         guildId: interaction.guild.id,
         roles: JSON.stringify(roles),
         parentId: categoryChannel.id,
