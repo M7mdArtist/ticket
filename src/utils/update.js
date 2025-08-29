@@ -47,9 +47,7 @@ async function sendUpdateMessage() {
         .addFields(
           {
             name: '🆕 New Features',
-            value:
-              `• Improved slash commands and added new ones.\n` +
-              `• Added \`/delete ticket\` command — use it in a ticket to close and delete it.`,
+            value: `• Added new slash command! Use \`/ticket transfer\` to transfer it to other admin!`,
           },
           {
             name: '🐞 Bugs & Suggestions',
