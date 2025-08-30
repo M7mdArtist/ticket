@@ -3,26 +3,35 @@ import TicketConfig from '../../../../database/models/TicketConfig.js';
 import { PermissionsBitField, EmbedBuilder } from 'discord.js';
 
 export default async function createTicket(reaction, user, userTickets) {
+  // remove the user reaction
   await reaction.users.remove(user.id).catch(console.error);
 
+  // if already tracked as active
   if (userTickets[user.id]?.active) {
     user.send('You already have an open ticket.');
     return;
   }
-  userTickets[user.id] = { active: true };
 
+  // check if system configured
   const ticketConfig = await TicketConfig.findOne({ where: { messageId: reaction.message.id } });
   if (!ticketConfig) return;
 
+  // check in DB if they already have unresolved ticket
   const existingTicket = await Ticket.findOne({ where: { authorId: user.id, resolved: false } });
   if (existingTicket) {
     user.send('You already have an open ticket.');
     return;
   }
 
+  // prepare entry but not marked active yet
+  userTickets[user.id] = {};
+
   clearTimeout(userTickets[user.id].timeout);
 
   userTickets[user.id].timeout = setTimeout(async () => {
+    // mark active only now
+    userTickets[user.id].active = true;
+
     const roleIds = JSON.parse(ticketConfig.roles || '[]');
     const permissions = roleIds.map(id => ({
       allow: [PermissionsBitField.Flags.ViewChannel],
