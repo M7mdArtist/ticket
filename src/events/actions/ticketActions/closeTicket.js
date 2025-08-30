@@ -1,7 +1,7 @@
 import Ticket from '../../../../database/models/Ticket.js';
 import TicketConfig from '../../../../database/models/TicketConfig.js';
 import { EmbedBuilder } from 'discord.js';
-import * as dht from 'discord-html-transcripts';
+import transcriptHandler from '../../../utils/transcripts.js';
 
 export default async function closeTicket(reaction, user, userTickets) {
   const ticket = await Ticket.findOne({
@@ -45,36 +45,38 @@ export default async function closeTicket(reaction, user, userTickets) {
 
         await ticketChannel.edit({ name: `${ticketChannel.name}-closed` });
 
-        // Generate HTML transcript
-        const transcript = await dht.createTranscript(ticketChannel, {
-          limit: -1,
-          returnBuffer: false,
-          fileName: `${ticketChannel.name}-transcript.html`,
-        });
+        await transcriptHandler.execute(ticketChannel, ticket, ticketConfig, reaction.message.guild);
 
-        // Send transcript to logs channel if configured
-        if (ticketConfig && ticketConfig.logsChannelId) {
-          try {
-            const logsChannel = await reaction.message.guild.channels.fetch(ticketConfig.logsChannelId);
-            await logsChannel.send({
-              content: `📑 Transcript for ticket **${ticketChannel.name}**`,
-              files: [transcript],
-            });
-          } catch (err) {
-            console.log('Failed to send transcript to logs channel:', err);
-          }
-        }
+        // // Generate HTML transcript
+        // const transcript = await dht.createTranscript(ticketChannel, {
+        //   limit: -1,
+        //   returnBuffer: false,
+        //   fileName: `${ticketChannel.name}-transcript.html`,
+        // });
 
-        // DM the ticket creator
-        try {
-          const ticketOwner = await reaction.message.guild.members.fetch(ticket.authorId);
-          await ticketOwner.send({
-            content: `📑 Here’s the transcript for your ticket **${ticketChannel.name}**`,
-            files: [transcript],
-          });
-        } catch (err) {
-          console.log("Couldn't DM the ticket creator:", err);
-        }
+        // // Send transcript to logs channel if configured
+        // if (ticketConfig && ticketConfig.logsChannelId) {
+        //   try {
+        //     const logsChannel = await reaction.message.guild.channels.fetch(ticketConfig.logsChannelId);
+        //     await logsChannel.send({
+        //       content: `📑 Transcript for ticket **${ticketChannel.name}**`,
+        //       files: [transcript],
+        //     });
+        //   } catch (err) {
+        //     console.log('Failed to send transcript to logs channel:', err);
+        //   }
+        // }
+
+        // // DM the ticket creator
+        // try {
+        //   const ticketOwner = await reaction.message.guild.members.fetch(ticket.authorId);
+        //   await ticketOwner.send({
+        //     content: `📑 Here’s the transcript for your ticket **${ticketChannel.name}**`,
+        //     files: [transcript],
+        //   });
+        // } catch (err) {
+        //   console.log("Couldn't DM the ticket creator:", err);
+        // }
 
         // Update log embed if configured
         if (ticketConfig && ticket.getDataValue('logId')) {

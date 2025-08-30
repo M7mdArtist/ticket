@@ -1,4 +1,5 @@
 import { EmbedBuilder } from 'discord.js';
+import transcripts from '../../../utils/transcripts.js';
 
 export default {
   async execute(interaction, ticket, ticketConfig) {
@@ -19,7 +20,7 @@ export default {
     if (interaction.channel.id !== ticket.getDataValue('channelId')) {
       return interaction.editReply('This is not a valid ticket channel.');
     }
-
+    await transcripts.execute(interaction.channel, ticket, ticketConfig, interaction.channel.guild);
     await interaction.editReply('OK!');
     await interaction.channel.send(`Deleting this ticket\nby a command from: <@${interaction.user.id}>`);
 
