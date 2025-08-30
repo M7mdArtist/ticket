@@ -47,7 +47,9 @@ async function sendUpdateMessage() {
         .addFields(
           {
             name: '🆕 New Features',
-            value: `• Added new slash command! Use \`/ticket transfer\` to transfer it to other admin!`,
+            value:
+              `• Now user can't close the ticket, But they can send request to close the ticket!\n` +
+              '• Fixed some bugs 🔧',
           },
           {
             name: '🐞 Bugs & Suggestions',
