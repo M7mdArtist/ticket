@@ -33,6 +33,9 @@ export default class Ticket extends Model {
         logId: {
           type: DataTypes.STRING,
         },
+        closeReq: {
+          type: DataTypes.BOOLEAN,
+        },
       },
       {
         tableName: 'Tickets',

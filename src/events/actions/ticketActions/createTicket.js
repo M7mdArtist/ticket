@@ -51,6 +51,7 @@ export default async function createTicket(reaction, user, userTickets) {
       resolved: false,
       closedMessageId: ticketMsg.id,
       claimed: false,
+      closerReq: false,
     });
 
     if (ticketConfig.getDataValue('logs') === true) {
