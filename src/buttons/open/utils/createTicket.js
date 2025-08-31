@@ -6,11 +6,12 @@ import { PermissionsBitField, EmbedBuilder, ButtonBuilder, ButtonStyle, ActionRo
 export default {
   async execute(interaction, userTickets) {
     const user = interaction.user;
+    const ticketKey = `${interaction.guild.id}-${user.id}`;
 
-    // Check if user already has active ticket
-    if (userTickets[user.id]?.active) {
+    // Check if user already has active ticket in this server
+    if (userTickets[ticketKey]?.active) {
       await interaction.reply({
-        content: 'You already have an open ticket.',
+        content: 'You already have an open ticket in this server.',
         ephemeral: true,
       });
       return;
@@ -20,18 +21,20 @@ export default {
     const ticketConfig = await TicketConfig.findOne({ where: { messageId: interaction.message.id } });
     if (!ticketConfig) return;
 
-    // Check if user already has unresolved ticket
-    const existingTicket = await Ticket.findOne({ where: { authorId: user.id, resolved: false } });
+    // Check DB if user already has unresolved ticket in this guild
+    const existingTicket = await Ticket.findOne({
+      where: { authorId: user.id, guildId: interaction.guild.id, resolved: false },
+    });
     if (existingTicket) {
       await interaction.reply({
-        content: 'You already have an open ticket.',
+        content: 'You already have an open ticket in this server.',
         ephemeral: true,
       });
       return;
     }
 
     // Mark user as active immediately
-    userTickets[user.id] = { active: true };
+    userTickets[ticketKey] = { active: true };
 
     const roleIds = JSON.parse(ticketConfig.roles || '[]');
     const permissions = roleIds.map(id => ({
@@ -41,7 +44,7 @@ export default {
 
     await interaction.reply({ content: '🎫 Your ticket is being created...', ephemeral: true });
 
-    // Create channel instantly
+    // Create ticket channel
     const channel = await interaction.guild.channels.create({
       name: 'ticket',
       parent: ticketConfig.parentId,
@@ -53,7 +56,7 @@ export default {
     });
 
     const embed = createTicketEmbed({
-      user: interaction.user,
+      user,
       channelId: channel.id,
       createdAt: new Date(),
     });
@@ -75,25 +78,29 @@ export default {
       closerReq: false,
     });
 
+    // Logs
     if (ticketConfig.getDataValue('logs') === true) {
       const logsChannelId = ticketConfig.getDataValue('logsChannelId');
-      const logsChannel = await interaction.guild.channels.fetch(logsChannelId);
+      const logsChannel = await interaction.guild.channels.fetch(logsChannelId).catch(() => null);
 
-      const logEmbed = new EmbedBuilder()
-        .setTitle(`<#${channel.id}>`)
-        .setColor('#77B255')
-        .addFields(
-          { name: 'Opened by:', value: `<@${user.id}>`, inline: true },
-          { name: 'Claimed by:', value: 'Not claimed', inline: true },
-          { name: 'Status:', value: 'Opened ✅', inline: true }
-        );
+      if (logsChannel) {
+        const logEmbed = new EmbedBuilder()
+          .setTitle(`<#${channel.id}>`)
+          .setColor('#77B255')
+          .addFields(
+            { name: 'Opened by:', value: `<@${user.id}>`, inline: true },
+            { name: 'Claimed by:', value: 'Not claimed', inline: true },
+            { name: 'Status:', value: 'Opened ✅', inline: true }
+          );
 
-      const log = await logsChannel.send({ embeds: [logEmbed] });
-      await ticket.update({ logId: log.id });
+        const log = await logsChannel.send({ embeds: [logEmbed] });
+        await ticket.update({ logId: log.id });
+      }
     } else {
       console.log('There is no log configured');
     }
 
+    // Rename channel with ticketId
     const ticketId = String(ticket.ticketId).padStart(4, '0');
     await channel.edit({ name: `ticket-${ticketId}` });
 

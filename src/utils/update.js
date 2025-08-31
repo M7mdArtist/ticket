@@ -1,4 +1,4 @@
-import { Client, GatewayIntentBits, EmbedBuilder } from 'discord.js';
+import { Client, GatewayIntentBits, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle } from 'discord.js';
 import mysql from 'mysql2/promise';
 import config from '../config.js';
 
@@ -6,7 +6,7 @@ const client = new Client({
   intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMessages],
 });
 
-async function sendUpdateMessage() {
+async function sendShutdownMessage() {
   try {
     const db = await mysql.createConnection({
       host: config.database.host,
@@ -25,15 +25,13 @@ async function sendUpdateMessage() {
     client.once('ready', async () => {
       console.log(`Logged in as ${client.user.tag}`);
 
-      // Fetch the guild fully
       const guild = await client.guilds.fetch(config.guild.id, { force: true });
-
       if (!guild) {
         console.error('Guild not found.');
         process.exit(1);
       }
 
-      const ownerId = guild.ownerId; // safe owner ID
+      const ownerId = guild.ownerId;
       const channel = await guild.channels.fetch(channelId).catch(() => null);
 
       if (!channel) {
@@ -41,44 +39,37 @@ async function sendUpdateMessage() {
         process.exit(1);
       }
 
-      const updateEmbed = new EmbedBuilder()
-        .setTitle('🎉 Ticket V2.0 Update Available!')
+      const shutdownEmbed = new EmbedBuilder()
+        .setTitle('⚠️ Bot Shutdown Notice')
         .setDescription(
-          `Hey <@${ownerId}>, the **Ticket Bot** has just been updated!\n\n` +
-            `Use the new features and commands to keep your server smooth!`
+          `Hello <@${ownerId}>,\n\n` +
+            `This bot will be going **offline permanently** and will **not work again**.\n\n` +
+            `But don’t worry! 🎉\nThere is a **new bot available** with the same features and improvements.`
         )
-        .addFields(
-          {
-            name: '🆕 New Features',
-            value:
-              `• New look, less bugs, faster tickets ⚡\n` +
-              `• Users now request to close tickets instead of closing directly\n` +
-              '• Bug fixes 🔧',
-          },
-          {
-            name: '📥 How to Update',
-            value: `To get the latest update, DM <@607616907033444363>.`,
-          },
-          {
-            name: '🐞 Bugs & Suggestions',
-            value: `If you find bugs or want new features, DM <@607616907033444363>.`,
-          }
-        )
-        .setColor(0x00ff99)
-        .setTimestamp()
-        .setFooter({ text: 'Ticket Bot V2 Update' });
+        .setColor(0xff0000)
+        .setFooter({ text: 'Thank you for using our bot 💙' })
+        .setTimestamp();
 
-      await channel.send({ content: `<@${ownerId}>`, embeds: [updateEmbed] });
-      console.log('✅ Update message sent!');
+      const row = new ActionRowBuilder().addComponents(
+        new ButtonBuilder()
+          .setLabel('🤖 Invite the New Bot')
+          .setStyle(ButtonStyle.Link)
+          .setURL(
+            'https://discord.com/oauth2/authorize?client_id=1395365522832363641&permissions=8&integration_type=0&scope=bot+applications.commands'
+          )
+      );
+
+      await channel.send({ content: `<@${ownerId}>`, embeds: [shutdownEmbed], components: [row] });
+      console.log('✅ Shutdown message sent!');
 
       await db.end();
       client.destroy();
       process.exit(0);
     });
   } catch (error) {
-    console.error('Error sending update message:', error);
+    console.error('Error sending shutdown message:', error);
     process.exit(1);
   }
 }
 
-sendUpdateMessage();
+sendShutdownMessage();
