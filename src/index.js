@@ -7,6 +7,7 @@ import Ticket from '../database/models/Ticket.js';
 import TicketConfig from '../database/models/TicketConfig.js';
 import { loadEvents } from './utils/loadEvents.js';
 import { loadCommands } from './utils/loadCommands.js';
+import { loadButtons } from './utils/loadButtons.js';
 
 const client = new Client({
   intents: [
@@ -28,6 +29,7 @@ await TicketConfig.sync({ force: true });
 
 // Load handlers
 await loadEvents(client);
+await loadButtons(client);
 client.commands = await loadCommands();
 
 // Start bot

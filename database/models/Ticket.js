@@ -18,7 +18,7 @@ export default class Ticket extends Model {
         resolved: {
           type: DataTypes.BOOLEAN,
         },
-        closedMessageId: {
+        ticketMsgId: {
           type: DataTypes.STRING,
         },
         authorId: {

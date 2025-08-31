@@ -1,5 +1,13 @@
-import { SlashCommandBuilder, ChannelType, PermissionsBitField } from 'discord.js';
+import {
+  ActionRowBuilder,
+  ButtonBuilder,
+  ButtonStyle,
+  SlashCommandBuilder,
+  ChannelType,
+  EmbedBuilder,
+} from 'discord.js';
 import TicketConfig from '../../database/models/TicketConfig.js';
+import { Component } from 'react';
 
 export default {
   data: new SlashCommandBuilder()
@@ -30,8 +38,17 @@ export default {
 
       await interaction.deferReply({ ephemeral: true });
 
-      const msg = await interaction.channel.send('react with 🎫 to this message to open a ticket 🤙');
-      console.log(`message Id: ${msg.id}`);
+      // const msg = await interaction.channel.send('react with 🎫 to this message to open a ticket 🤙');
+
+      const embed = new EmbedBuilder()
+        .setTitle('Ticket')
+        .setDescription('Click the button to open a ticket!🎫')
+        .setColor('#DBD42B');
+
+      const openButton = new ButtonBuilder().setCustomId('open').setLabel('Open Ticket').setStyle(ButtonStyle.Primary);
+      const row = new ActionRowBuilder().addComponents(openButton);
+
+      const msg = await interaction.channel.send({ embeds: [embed], components: [row] });
 
       const fetchMsg = await interaction.channel.messages.fetch(msg.id);
 
@@ -55,28 +72,6 @@ export default {
         roleObjects.push(role);
       }
 
-      // const deleteChannel = await interaction.guild.channels.create({
-      //   name: 'delete-closed-tickets',
-      //   type: ChannelType.GuildText,
-      //   parent: interaction.channel.parentId,
-      //   permissionOverwrites: [
-      //     {
-      //       id: interaction.guild.id,
-      //       deny: [PermissionsBitField.Flags.ViewChannel],
-      //     },
-      //     ...roleObjects.map(role => ({
-      //       id: role.id,
-      //       allow: [
-      //         PermissionsBitField.Flags.ViewChannel,
-      //         PermissionsBitField.Flags.SendMessages,
-      //         PermissionsBitField.Flags.ReadMessageHistory,
-      //       ],
-      //     })),
-      //   ],
-      // });
-
-      // deleteChannel.send('Use **/delete** to delete all closed tickets.');
-
       const ticketConfig = await TicketConfig.create({
         messageId: msg.id,
         channelId: interaction.channel.id,
@@ -88,7 +83,7 @@ export default {
       });
       console.log(ticketConfig);
 
-      await fetchMsg.react('🎫');
+      // await fetchMsg.react('🎫');
       await interaction.editReply({ content: 'Ticket system setup complete!' });
     } catch (err) {
       console.error('Setup error:', err);

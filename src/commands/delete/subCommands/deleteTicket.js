@@ -45,7 +45,7 @@ export default {
         console.error('Failed to update log message:', err);
       }
     }
-
+    ticket.update({ resolved: true });
     setTimeout(() => {
       interaction.channel.delete().catch(() => {});
     }, 5000);

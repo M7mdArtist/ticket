@@ -1,9 +1,6 @@
 import { Client, GatewayIntentBits, EmbedBuilder } from 'discord.js';
 import mysql from 'mysql2/promise';
 import config from '../config.js';
-import dotenv from 'dotenv';
-
-dotenv.config();
 
 const client = new Client({
   intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMessages],
@@ -11,61 +8,72 @@ const client = new Client({
 
 async function sendUpdateMessage() {
   try {
-    const connection = await mysql.createConnection({
+    const db = await mysql.createConnection({
       host: config.database.host,
       user: config.database.user,
       password: config.database.pass,
       database: config.database.name,
     });
 
-    const [rows] = await connection.execute('SELECT channelId FROM TicketConfigs LIMIT 1');
-    if (!rows.length) {
-      console.log('No channel ID found in database.');
-      return process.exit();
-    }
+    const [rows] = await db.execute('SELECT channelId FROM TicketConfigs WHERE guildId = ? LIMIT 1', [config.guild.id]);
 
-    const channelId = rows[0].channelId; // <-- correct column
+    const fallbackChannelId = '1409495052526420089'; // fallback channel if DB has nothing
+    const channelId = rows.length ? rows[0].channelId : fallbackChannelId;
 
     await client.login(config.bot.token);
+
     client.once('ready', async () => {
       console.log(`Logged in as ${client.user.tag}`);
 
-      const channel = await client.channels.fetch(channelId).catch(() => null);
+      // Fetch the guild fully
+      const guild = await client.guilds.fetch(config.guild.id, { force: true });
+
+      if (!guild) {
+        console.error('Guild not found.');
+        process.exit(1);
+      }
+
+      const ownerId = guild.ownerId; // safe owner ID
+      const channel = await guild.channels.fetch(channelId).catch(() => null);
+
       if (!channel) {
-        console.log('Channel not found or bot has no access.');
-        return process.exit();
+        console.error('Channel not found or bot has no access.');
+        process.exit(1);
       }
 
       const updateEmbed = new EmbedBuilder()
-        .setTitle('🎉 Ticket Bot Updated!')
+        .setTitle('🎉 Ticket V2.0 Update Available!')
         .setDescription(
-          `The **Ticket Bot** has just been updated! Use the following commands to configure it:\n` +
-            `\`/setup\` - Run this first to set up the bot\n` +
-            `\`/delete set\` - Set your delete channel (if you have one)\n` +
-            `\`/logs set\` - Set your logs channel (if you have one)`
+          `Hey <@${ownerId}>, the **Ticket Bot** has just been updated!\n\n` +
+            `Use the new features and commands to keep your server smooth!`
         )
         .addFields(
           {
             name: '🆕 New Features',
             value:
-              `• Now user can't close the ticket, But they can send request to close the ticket!\n` +
-              '• Fixed some bugs 🔧',
+              `• New look, less bugs, faster tickets ⚡\n` +
+              `• Users now request to close tickets instead of closing directly\n` +
+              '• Bug fixes 🔧',
+          },
+          {
+            name: '📥 How to Update',
+            value: `To get the latest update, DM <@607616907033444363>.`,
           },
           {
             name: '🐞 Bugs & Suggestions',
-            value: `If you found bugs or have new feature ideas, DM <@607616907033444363>.`,
+            value: `If you find bugs or want new features, DM <@607616907033444363>.`,
           }
         )
         .setColor(0x00ff99)
         .setTimestamp()
-        .setFooter({ text: 'Ticket Bot Update' });
+        .setFooter({ text: 'Ticket Bot V2 Update' });
 
-      await channel.send({ embeds: [updateEmbed] });
-      console.log('Update message sent!');
+      await channel.send({ content: `<@${ownerId}>`, embeds: [updateEmbed] });
+      console.log('✅ Update message sent!');
 
-      await client.destroy();
-      await connection.end();
-      process.exit();
+      await db.end();
+      client.destroy();
+      process.exit(0);
     });
   } catch (error) {
     console.error('Error sending update message:', error);
