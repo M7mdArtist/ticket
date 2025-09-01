@@ -70,10 +70,12 @@ export default {
             await ticketChannel.permissionOverwrites.edit(ticket.authorId, { ViewChannel: false });
             await ticket.update({ resolved: true, closedMessageId: interaction.id });
 
+            const ticketKey = `${interaction.guild.id}-${ticket.authorId}`;
+
             // Clear userTickets
-            if (userTickets[ticket.authorId]) {
-              userTickets[ticket.authorId].active = false;
-              userTickets[ticket.authorId].timeout && clearTimeout(userTickets[ticket.authorId].timeout);
+            if (userTickets[ticketKey]) {
+              userTickets[ticketKey].active = false;
+              userTickets[ticketKey].timeout && clearTimeout(userTickets[ticketKey].timeout);
             }
 
             await ticketChannel.edit({ name: `${ticketChannel.name}-closed` });
