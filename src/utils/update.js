@@ -6,7 +6,7 @@ const client = new Client({
   intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMessages],
 });
 
-async function sendShutdownMessage() {
+async function sendUpdateMessage() {
   try {
     const db = await mysql.createConnection({
       host: config.database.host,
@@ -39,37 +39,40 @@ async function sendShutdownMessage() {
         process.exit(1);
       }
 
-      const shutdownEmbed = new EmbedBuilder()
-        .setTitle('⚠️ Bot Shutdown Notice')
+      const updateEmbed = new EmbedBuilder()
+        .setTitle('🚀 Bot Update Available!')
         .setDescription(
           `Hello <@${ownerId}>,\n\n` +
-            `This bot will be going **offline permanently** and will **not work again**.\n\n` +
-            `But don’t worry! 🎉\nThere is a **new bot available** with the same features and improvements.`
+            `We’re excited to announce a **new update** to the bot with awesome improvements:\n\n` +
+            `✨ **Setup is now easier** — no need to copy role IDs anymore.\n` +
+            `🔧 New commands: \`/role add\`, \`/role remove\`, \`/role list\`\n\n` +
+            `⚠️ **Important Note:**\n` +
+            `Old tickets **cannot be claimed, unclaimed, closed, or have transcripts created** once you update.\n` +
+            `We strongly recommend that you **close all open tickets before getting the new update**.\n\n` +
+            `➡️ To get the updated bot, DM <@607616907033444363>.`
         )
-        .setColor(0xff0000)
+        .setColor(0x00bfff)
         .setFooter({ text: 'Thank you for using our bot 💙' })
         .setTimestamp();
 
       const row = new ActionRowBuilder().addComponents(
         new ButtonBuilder()
-          .setLabel('🤖 Invite the New Bot')
+          .setLabel('💬 Contact Developer')
           .setStyle(ButtonStyle.Link)
-          .setURL(
-            'https://discord.com/oauth2/authorize?client_id=1395365522832363641&permissions=8&integration_type=0&scope=bot+applications.commands'
-          )
+          .setURL('https://discord.com/users/607616907033444363')
       );
 
-      await channel.send({ content: `<@${ownerId}>`, embeds: [shutdownEmbed], components: [row] });
-      console.log('✅ Shutdown message sent!');
+      await channel.send({ content: `<@${ownerId}>`, embeds: [updateEmbed], components: [row] });
+      console.log('✅ Update message sent!');
 
       await db.end();
       client.destroy();
       process.exit(0);
     });
   } catch (error) {
-    console.error('Error sending shutdown message:', error);
+    console.error('Error sending update message:', error);
     process.exit(1);
   }
 }
 
-sendShutdownMessage();
+sendUpdateMessage();

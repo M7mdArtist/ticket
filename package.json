@@ -6,7 +6,8 @@
   "scripts": {
     "start": "node src/index.js",
     "deploy": "node src/utils/deploy-commands.js",
-    "remove": "node src/utils/remove-all-client-commands.js && node src/utils/remove-all-commands.js"
+    "remove": "node src/utils/remove-all-client-commands.js && node src/utils/remove-all-commands.js",
+    "update": "node src/utils/update.js"
   },
   "keywords": [],
   "author": "",
