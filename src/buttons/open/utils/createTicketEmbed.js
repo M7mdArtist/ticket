@@ -21,7 +21,8 @@ export function createTicketEmbed({
         value:
           '• Please describe your issue clearly.\n' +
           '• Staff will respond as soon as possible.\n' +
-          '• Click the close button to request to close the ticket',
+          '• Click the close button to request to close the ticket\n\n' +
+          '• To see who can help you, use the command `/role list`',
       }
     )
     .setColor('#77B255')

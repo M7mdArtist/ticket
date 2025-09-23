@@ -4,6 +4,7 @@ export default {
   bot: {
     token: process.env.BOT_TOKEN,
     id: process.env.CLIENT_ID,
+    type: process.env.TYPE,
   },
   database: {
     name: process.env.DB_NAME,

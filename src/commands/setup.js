@@ -7,7 +7,6 @@ import {
   EmbedBuilder,
 } from 'discord.js';
 import TicketConfig from '../../database/models/TicketConfig.js';
-import { Component } from 'react';
 
 export default {
   data: new SlashCommandBuilder()
@@ -19,10 +18,10 @@ export default {
         .setDescription('The category ID for tickets')
         .addChannelTypes(ChannelType.GuildCategory)
         .setRequired(true)
-    )
-    .addStringOption(option =>
-      option.setName('roles').setDescription('Comma-separated role IDs that have access to tickets').setRequired(true)
     ),
+  // .addStringOption(option =>
+  //   option.setName('roles').setDescription('Comma-separated role IDs that have access to tickets').setRequired(true)
+  // ),
 
   async execute(interaction, client) {
     if (interaction.guild.ownerId !== interaction.user.id) {
@@ -34,11 +33,9 @@ export default {
 
     try {
       const categoryId = interaction.options.getChannel('category').id;
-      const roles = interaction.options.getString('roles').split(/,\s*/);
+      // const roles = interaction.options.getString('roles').split(/,\s*/);
 
       await interaction.deferReply({ ephemeral: true });
-
-      // const msg = await interaction.channel.send('react with 🎫 to this message to open a ticket 🤙');
 
       const embed = new EmbedBuilder()
         .setTitle('Ticket')
@@ -50,41 +47,49 @@ export default {
 
       const msg = await interaction.channel.send({ embeds: [embed], components: [row] });
 
-      const fetchMsg = await interaction.channel.messages.fetch(msg.id);
-
       const categoryChannel = client.channels.cache.get(categoryId);
 
       if (!categoryChannel) {
         throw new Error('Invalid category ID');
       }
 
-      for (const roleId of roles) {
-        if (!interaction.guild.roles.cache.get(roleId)) {
-          console.log(`Role ${roleId} does not exist`);
-          throw new Error(`Role ${roleId} does not exist`);
-        }
-      }
-
-      const roleObjects = [];
-      for (const roleId of roles) {
-        const role = await interaction.guild.roles.fetch(roleId).catch(() => null);
-        if (!role) throw new Error(`Role ${roleId} not found`);
-        roleObjects.push(role);
-      }
-
-      const ticketConfig = await TicketConfig.create({
+      const ticketConfig = TicketConfig.create({
         messageId: msg.id,
         channelId: interaction.channel.id,
         guildId: interaction.guild.id,
-        roles: JSON.stringify(roles),
+        // roles: JSON.stringify(roles),
         parentId: categoryChannel.id,
         deleteTicketsChannel: false,
         logs: false,
       });
+
+      // for (const roleId of roles) {
+      //   if (!interaction.guild.roles.cache.get(roleId)) {
+      //     console.log(`Role ${roleId} does not exist`);
+      //     throw new Error(`Role ${roleId} does not exist`);
+      //   }
+      // }
+
+      // const roleObjects = [];
+      // for (const roleId of roles) {
+      //   const role = await interaction.guild.roles.fetch(roleId).catch(() => null);
+      //   if (!role) throw new Error(`Role ${roleId} not found`);
+      //   roleObjects.push(role);
+      // }
+
+      // const ticketConfig = await TicketConfig.create({
+      //   messageId: msg.id,
+      //   channelId: interaction.channel.id,
+      //   guildId: interaction.guild.id,
+      //   // roles: JSON.stringify(roles),
+      //   parentId: categoryChannel.id,
+      //   deleteTicketsChannel: false,
+      //   logs: false,
+      // });
       console.log(ticketConfig);
 
       // await fetchMsg.react('🎫');
-      await interaction.editReply({ content: 'Ticket system setup complete!' });
+      await interaction.editReply({ content: 'Ticket system setup complete!\n **Do Not forget to use /addrole**' });
     } catch (err) {
       console.error('Setup error:', err);
       interaction.editReply({ content: `Error during setup: ${err.message}` });
