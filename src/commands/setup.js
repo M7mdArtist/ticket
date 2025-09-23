@@ -89,7 +89,7 @@ export default {
       console.log(ticketConfig);
 
       // await fetchMsg.react('🎫');
-      await interaction.editReply({ content: 'Ticket system setup complete!\n **Do Not forget to use /addrole**' });
+      await interaction.editReply({ content: 'Ticket system setup complete!\n **Do Not forget to use /role add**' });
     } catch (err) {
       console.error('Setup error:', err);
       interaction.editReply({ content: `Error during setup: ${err.message}` });

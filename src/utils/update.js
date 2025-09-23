@@ -15,35 +15,21 @@ async function sendUpdateMessage() {
       database: config.database.name,
     });
 
-    const [rows] = await db.execute('SELECT channelId FROM TicketConfigs WHERE guildId = ? LIMIT 1', [config.guild.id]);
+    // ✅ Get all guilds & channels from DB
+    const [rows] = await db.execute('SELECT guildId, channelId FROM TicketConfigs');
 
-    const fallbackChannelId = '1409495052526420089'; // fallback channel if DB has nothing
-    const channelId = rows.length ? rows[0].channelId : fallbackChannelId;
+    // fallback channel if DB has nothing
+    const fallbackChannelId = '1409495052526420089';
 
     await client.login(config.bot.token);
 
     client.once('ready', async () => {
       console.log(`Logged in as ${client.user.tag}`);
 
-      const guild = await client.guilds.fetch(config.guild.id, { force: true });
-      if (!guild) {
-        console.error('Guild not found.');
-        process.exit(1);
-      }
-
-      const ownerId = guild.ownerId;
-      const channel = await guild.channels.fetch(channelId).catch(() => null);
-
-      if (!channel) {
-        console.error('Channel not found or bot has no access.');
-        process.exit(1);
-      }
-
       const updateEmbed = new EmbedBuilder()
         .setTitle('🚀 Bot Update Available!')
         .setDescription(
-          `Hello <@${ownerId}>,\n\n` +
-            `We’re excited to announce a **new update** to the bot with awesome improvements:\n\n` +
+          `We’re excited to announce a **new update** to the bot with awesome improvements:\n\n` +
             `✨ **Setup is now easier** — no need to copy role IDs anymore.\n` +
             `🔧 New commands: \`/role add\`, \`/role remove\`, \`/role list\`\n\n` +
             `⚠️ **Important Note:**\n` +
@@ -62,8 +48,28 @@ async function sendUpdateMessage() {
           .setURL('https://discord.com/users/607616907033444363')
       );
 
-      await channel.send({ content: `<@${ownerId}>`, embeds: [updateEmbed], components: [row] });
-      console.log('✅ Update message sent!');
+      for (const { guildId, channelId } of rows) {
+        try {
+          const guild = await client.guilds.fetch(guildId).catch(() => null);
+          if (!guild) {
+            console.warn(`⚠️ Guild ${guildId} not found, skipping...`);
+            continue;
+          }
+
+          const channel = await guild.channels.fetch(channelId || fallbackChannelId).catch(() => null);
+          if (!channel) {
+            console.warn(`⚠️ Channel not found in guild ${guildId}, skipping...`);
+            continue;
+          }
+
+          const ownerId = guild.ownerId;
+
+          await channel.send({ content: `<@${ownerId}>`, embeds: [updateEmbed], components: [row] });
+          console.log(`✅ Update message sent to guild: ${guild.name} (${guildId})`);
+        } catch (err) {
+          console.error(`❌ Error sending message to guild ${guildId}:`, err);
+        }
+      }
 
       await db.end();
       client.destroy();
