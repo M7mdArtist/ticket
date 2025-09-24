@@ -33,11 +33,11 @@ async function sendUpdateMessage() {
             `✨ **Setup is now easier** — no need to copy role IDs anymore.\n` +
             `🔧 New commands: \`/role add\`, \`/role remove\`, \`/role list\`\n\n` +
             `⚠️ **Important Note:**\n` +
-            `Old tickets **cannot be claimed, unclaimed, closed, or have transcripts created** once you update.\n` +
-            `We strongly recommend that you **close all open tickets before getting the new update**.\n\n` +
+            `Starting **today**, **all currently opened tickets will lose their functions** — they cannot be claimed, unclaimed, closed, or have transcripts created.\n` +
+            `We strongly recommend that you **close all open tickets immediately before updating**.\n\n` +
             `➡️ To get the updated bot, DM <@607616907033444363>.`
         )
-        .setColor(0x00bfff)
+        .setColor(0xff0000) // 🔴 Red for urgent notice
         .setFooter({ text: 'Thank you for using our bot 💙' })
         .setTimestamp();
 
