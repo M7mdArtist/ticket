@@ -4,7 +4,7 @@
   "type": "module",
   "main": "src/index.js",
   "scripts": {
-    "start": "node src/index.js",
+    "start": "nodemon src/index.js",
     "deploy": "node src/utils/deploy-commands.js",
     "remove": "node src/utils/remove-all-client-commands.js && node src/utils/remove-all-commands.js",
     "update": "node src/utils/update.js"
@@ -18,7 +18,9 @@
     "discord.js": "^14.21.0",
     "dotenv": "^17.2.0",
     "mysql2": "^3.14.2",
-    "nodemon": "^3.1.10",
     "sequelize": "^6.37.7"
+  },
+  "devDependencies": {
+    "nodemon": "^3.1.10"
   }
 }
