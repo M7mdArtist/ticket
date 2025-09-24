@@ -27,17 +27,22 @@ async function sendUpdateMessage() {
       console.log(`Logged in as ${client.user.tag}`);
 
       const updateEmbed = new EmbedBuilder()
-        .setTitle('🚀 Bot Update Available!')
+        .setTitle('🚀 Bot Update Completed!')
         .setDescription(
-          `We’re excited to announce a **new update** to the bot with awesome improvements:\n\n` +
-            `✨ **Setup is now easier** — no need to copy role IDs anymore.\n` +
-            `🔧 New commands: \`/role add\`, \`/role remove\`, \`/role list\`\n\n` +
-            `⚠️ **Important Note:**\n` +
-            `Starting **today**, **all currently opened tickets will lose their functions** — they cannot be claimed, unclaimed, closed, or have transcripts created.\n` +
-            `We strongly recommend that you **close all open tickets immediately before updating**.\n\n` +
-            `➡️ To get the updated bot, DM <@607616907033444363>.`
+          `Hello everyone,\n\n` +
+            `The update has been **successfully applied** 🎉\n\n` +
+            `⚠️ **Important:**\n` +
+            `All previously opened tickets have **lost their functions** (cannot be claimed, unclaimed, closed, or have transcripts created).\n\n` +
+            `🛠️ **What you need to do now:**\n` +
+            `- Re-setup the bot using:\n` +
+            `   • \`/role\` (add, remove, list)\n` +
+            `   • \`/setup\`\n` +
+            `   • \`/logs set\`\n` +
+            `   • \`/delete set\`\n\n` +
+            `🐞 **If you find any bugs or issues, please contact the developer directly.**\n\n` +
+            `➡️ DM <@607616907033444363> for help.`
         )
-        .setColor(0xff0000) // 🔴 Red for urgent notice
+        .setColor(0xff0000) // 🔴 red for urgency
         .setFooter({ text: 'Thank you for using our bot 💙' })
         .setTimestamp();
 
