@@ -6,7 +6,8 @@ import {
   ChannelType,
   EmbedBuilder,
 } from 'discord.js';
-import TicketConfig from '../../database/models/TicketConfig.js';
+import TicketConfig from '../../../database/models/TicketConfig.js';
+import reg from './utils/reg.js';
 
 export default {
   data: new SlashCommandBuilder()
@@ -89,6 +90,7 @@ export default {
       console.log(ticketConfig);
 
       // await fetchMsg.react('🎫');
+      reg.execute(interaction, categoryChannel);
       await interaction.editReply({ content: 'Ticket system setup complete!\n **Do Not forget to use /role add**' });
     } catch (err) {
       console.error('Setup error:', err);
