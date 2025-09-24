@@ -12,6 +12,9 @@ export default {
         return interaction.reply({ content: 'Ticket system is not configured.', ephemeral: true });
       }
 
+      if (!ticketConfig.getDataValue('roles') || ticketConfig.getDataValue('roles') === '[]')
+        return interaction.reply({ content: 'No roles are set to manage tickets❌', ephemeral: true });
+
       const roles = JSON.parse(ticketConfig.getDataValue('roles'));
       const isAllowed = interaction.member.roles.cache.some(role => roles.includes(role.id));
       if (!isAllowed) {

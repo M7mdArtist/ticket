@@ -13,6 +13,9 @@ export default {
         });
       }
 
+      if (!ticketConfig.getDataValue('roles') || ticketConfig.getDataValue('roles') === '[]')
+        return interaction.reply({ content: 'No roles are set to manage tickets❌', ephemeral: true });
+
       const allowedRoles = JSON.parse(ticketConfig.getDataValue('roles'));
       const isAllowed = interaction.member.roles.cache.some(role => allowedRoles.includes(role.id));
 

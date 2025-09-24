@@ -10,6 +10,9 @@ export default {
       const ticketConfig = await TicketConfig.findOne({ where: { guildId: interaction.guild.id } });
       if (!ticketConfig) return interaction.editReply({ content: 'Ticket system is not configured', ephemeral: true });
 
+      if (!ticketConfig.getDataValue('roles') || ticketConfig.getDataValue('roles') === '[]')
+        return interaction.reply({ content: 'No roles are set to manage tickets❌', ephemeral: true });
+
       const allowedRoles = JSON.parse(ticketConfig.getDataValue('roles'));
       const isAllowed = interaction.member.roles.cache.some(role => allowedRoles.includes(role.id));
       if (!isAllowed) return interaction.editReply({ content: 'You do not have permission to use this command❌' });

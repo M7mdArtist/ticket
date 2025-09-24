@@ -11,6 +11,8 @@ export default {
       return interaction.editReply('No ticket was found for this channel.');
     }
 
+    if (!ticketConfig.getDataValue('roles') || ticketConfig.getDataValue('roles') === '[]')
+      return interaction.reply({ content: 'No roles are set to manage tickets❌', ephemeral: true });
     const roles = JSON.parse(ticketConfig.getDataValue('roles'));
     const isAllowed = interaction.member.roles.cache.some(role => roles.includes(role.id));
     if (!isAllowed) {

@@ -15,6 +15,8 @@ export default {
       if (!ticketConfig) return interaction.reply({ content: 'Ticket system is not configured.', ephemeral: true });
 
       const member = await interaction.guild.members.fetch(interaction.user.id);
+      if (!ticketConfig.getDataValue('roles') || ticketConfig.getDataValue('roles') === '[]')
+        return interaction.reply({ content: 'No roles are set to manage tickets❌', ephemeral: true });
       const allowedRoles = JSON.parse(ticketConfig.getDataValue('roles') || '[]');
       const isAllowed = member.roles.cache.some(role => allowedRoles.includes(role.id));
 

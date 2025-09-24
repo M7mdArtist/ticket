@@ -1,4 +1,5 @@
 import TicketConfig from '../../../../database/models/TicketConfig.js';
+import { EmbedBuilder } from 'discord.js';
 
 export default {
   async execute(interaction) {
@@ -42,7 +43,23 @@ export default {
 
       await TicketConfig.update({ roles: JSON.stringify(rolesArr) }, { where: { guildId: interaction.guild.id } });
 
-      return interaction.reply({ content: `Removed ${role.name} from ticket roles✅`, ephemeral: true });
+      interaction.reply({ content: `Removed ${role.name} from ticket roles✅`, ephemeral: true });
+      if (!ticketConfig.logs) return;
+      if (ticketConfig.logs) {
+        const logsChannelId = ticketConfig.logsChannelId;
+        if (!logsChannelId) return;
+        const logsChannel = interaction.guild.channels.cache.get(logsChannelId);
+        if (!logsChannel) return;
+        const embed = new EmbedBuilder()
+          .setColor(0xff0000)
+          .setTitle('Role Removed Successfully')
+          .setDescription(
+            `**User:** ${interaction.user.tag}\n**Role Removed:** <@&${role.id}>\n\nTo view all available roles, use \`/roles list\``
+          )
+          .setTimestamp()
+          .setFooter({ text: 'Role Management' });
+        logsChannel.send({ embeds: [embed] });
+      }
     } catch (error) {
       console.error('Error removing role:', error);
       return interaction.reply({ content: 'There was an error while removing the role❌', ephemeral: true });
