@@ -1,7 +1,6 @@
 import 'dotenv/config';
 import config from './config.js';
 import { Client, GatewayIntentBits, Partials } from 'discord.js';
-import { Sequelize } from 'sequelize';
 import db from '../database/index.js';
 import Ticket from '../database/models/Ticket.js';
 import TicketConfig from '../database/models/TicketConfig.js';
