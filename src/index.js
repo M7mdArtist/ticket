@@ -25,8 +25,8 @@ await db.authenticate();
 console.log('Connected to DB');
 Ticket.init(db);
 TicketConfig.init(db);
-await Ticket.sync({ force: type });
-await TicketConfig.sync({ force: type });
+await Ticket.sync({ force: true });
+await TicketConfig.sync({ force: true });
 
 // Load handlers
 await loadEvents(client);
