@@ -51,9 +51,9 @@ export default {
 
         // copy fields but replace claimed by
         ticketEmbed.fields?.forEach(field => {
-          if (field.name === 'Claimed by')
+          if (field.name.toLowerCase() === 'claimed by')
             newEmbed.addFields({
-              name: 'Claimed by',
+              name: 'Claimed by:',
               value: `<@${interaction.user.id}> ☑️`,
               inline: field.inline,
             });
@@ -103,9 +103,9 @@ export default {
 
             // copy fields but replace claimed by
             oldEmbed.fields?.forEach(field => {
-              if (field.name === 'claimed by:') {
+              if (field.name.toLowerCase().includes('claimed by')) {
                 newEmbed.addFields({
-                  name: 'claimed by:',
+                  name: 'Claimed by',
                   value: `<@${interaction.user.id}> ☑️`,
                   inline: field.inline,
                 });
