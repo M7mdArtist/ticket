@@ -56,6 +56,8 @@ export default {
 
       const deleteEmbed = new EmbedBuilder()
         .setTitle('Delete Info')
+        .setColor('#37ff00')
+        .setTimestamp(new Date())
         .addFields(
           { name: 'Deleted:', value: `${deleteCount} tickets`, inline: true },
           { name: 'Used by:', value: `${interaction.user}`, inline: true },
