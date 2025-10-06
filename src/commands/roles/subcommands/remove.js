@@ -39,12 +39,24 @@ export default {
       }
 
       // Remove the role
+      let replyMsg = '⏳ Removing role...';
+      await interaction.reply({ content: replyMsg, ephemeral: true });
       rolesArr = rolesArr.filter(r => r !== role.id);
 
       await TicketConfig.update({ roles: JSON.stringify(rolesArr) }, { where: { guildId: interaction.guild.id } });
 
-      interaction.reply({ content: `Removed ${role.name} from ticket roles✅`, ephemeral: true });
-      if (!ticketConfig.logs) return;
+      replyMsg += `\n✅Removed <@&${role.id}> from ticket roles`;
+      interaction.editReply({
+        content: replyMsg,
+      });
+      if (!ticketConfig.logs) {
+        replyMsg += `\n⚠️ Enable logs to get notified when a role is added`;
+        interaction.editReply({
+          content: replyMsg,
+        });
+        return;
+      }
+      // Log the action if logs channel is set
       if (ticketConfig.logs) {
         const logsChannelId = ticketConfig.logsChannelId;
         if (!logsChannelId) return;
@@ -59,6 +71,10 @@ export default {
           .setTimestamp()
           .setFooter({ text: 'Role Management' });
         logsChannel.send({ embeds: [embed] });
+        replyMsg += `\n✅Logged the action in <#${logsChannelId}>`;
+        interaction.editReply({
+          content: replyMsg,
+        });
       }
     } catch (error) {
       console.error('Error removing role:', error);

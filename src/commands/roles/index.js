@@ -11,13 +11,13 @@ export default {
       sub
         .setName('add')
         .setDescription('Add ticket permission to a role')
-        .addRoleOption(opt => opt.setName('role').setDescription('Choose the role'))
+        .addRoleOption(opt => opt.setName('role').setDescription('Choose the role').setRequired(true))
     )
     .addSubcommand(sub =>
       sub
         .setName('remove')
         .setDescription('Remove ticket permission from a role')
-        .addRoleOption(opt => opt.setName('role').setDescription('Choose the role'))
+        .addRoleOption(opt => opt.setName('role').setDescription('Choose the role').setRequired(true))
     )
     .addSubcommand(sub => sub.setName('list').setDescription('List all roles with ticket permission')),
   async execute(interaction) {

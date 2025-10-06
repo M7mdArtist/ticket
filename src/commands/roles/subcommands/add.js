@@ -20,6 +20,8 @@ export default {
       if (!ticketConfig) {
         return interaction.reply({ content: 'Setup the ticket system first❌', ephemeral: true });
       }
+      let replyMsg = '⏳ Adding role...';
+      await interaction.reply({ content: replyMsg, ephemeral: true });
 
       // Parse roles array from DB or initialize as empty array
       let rolesArr = [];
@@ -32,8 +34,9 @@ export default {
       }
 
       if (rolesArr.includes(role.id)) {
-        return interaction.reply({
-          content: 'Role is already added❌',
+        replyMsg += `\n✅Role is already added`;
+        return interaction.editReply({
+          content: replyMsg,
           ephemeral: true,
         });
       }
@@ -42,8 +45,12 @@ export default {
 
       await TicketConfig.update({ roles: JSON.stringify(rolesArr) }, { where: { guildId: interaction.guild.id } });
 
-      interaction.reply({ content: `Added ${role.name} to ticket roles✅`, ephemeral: true });
-      if (!ticketConfig.logs) return;
+      replyMsg += `\nAdded ${role.name} to ticket roles✅`;
+      interaction.editReply({ content: replyMsg, ephemeral: true });
+      if (!ticketConfig.logs) {
+        replyMsg += `\n⚠️ Enable logs to get notified when a role is added`;
+        return interaction.editReply({ content: replyMsg, ephemeral: true });
+      }
       if (ticketConfig.logs) {
         const logsChannelId = ticketConfig.logsChannelId;
         if (!logsChannelId) return;
@@ -58,6 +65,8 @@ export default {
           .setTimestamp()
           .setFooter({ text: 'Role Management' });
         logsChannel.send({ embeds: [embed] });
+        replyMsg += `\n✅Logged the action in <#${logsChannelId}>`;
+        return interaction.editReply({ content: replyMsg, ephemeral: true });
       }
     } catch (error) {
       console.error('Error adding role:', error);

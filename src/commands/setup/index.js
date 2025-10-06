@@ -25,6 +25,7 @@ export default {
   // ),
 
   async execute(interaction, client) {
+    let replyMsg;
     if (interaction.guild.ownerId !== interaction.user.id) {
       return interaction.reply({
         content: 'Only server owner👑 can use this command',
@@ -64,34 +65,10 @@ export default {
         logs: false,
       });
 
-      // for (const roleId of roles) {
-      //   if (!interaction.guild.roles.cache.get(roleId)) {
-      //     console.log(`Role ${roleId} does not exist`);
-      //     throw new Error(`Role ${roleId} does not exist`);
-      //   }
-      // }
-
-      // const roleObjects = [];
-      // for (const roleId of roles) {
-      //   const role = await interaction.guild.roles.fetch(roleId).catch(() => null);
-      //   if (!role) throw new Error(`Role ${roleId} not found`);
-      //   roleObjects.push(role);
-      // }
-
-      // const ticketConfig = await TicketConfig.create({
-      //   messageId: msg.id,
-      //   channelId: interaction.channel.id,
-      //   guildId: interaction.guild.id,
-      //   // roles: JSON.stringify(roles),
-      //   parentId: categoryChannel.id,
-      //   deleteTicketsChannel: false,
-      //   logs: false,
-      // });
       console.log(ticketConfig);
-
-      // await fetchMsg.react('🎫');
-      reg.execute(interaction, categoryChannel);
-      await interaction.editReply({ content: 'Ticket system setup complete!\n **Do Not forget to use /role add**' });
+      replyMsg = `\n⏳Registering **old tickets** in **${categoryChannel.name}** category...`;
+      await interaction.editReply({ content: replyMsg });
+      reg.execute(interaction, categoryChannel, replyMsg);
     } catch (err) {
       console.error('Setup error:', err);
       interaction.editReply({ content: `Error during setup: ${err.message}` });

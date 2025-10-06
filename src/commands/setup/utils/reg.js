@@ -3,7 +3,7 @@ import TicketConfig from '../../../../database/models/TicketConfig.js';
 import Ticket from '../../../../database/models/Ticket.js';
 
 export default {
-  async execute(interaction, category) {
+  async execute(interaction, category, replyMsg) {
     // const ticketConfig = await TicketConfig.findOne({ where: { guildId: interaction.guild.id } });
     // if (!ticketConfig)
     //   return interaction.editReply({ content: 'No ticket configuration found for this server.', ephemeral: true });
@@ -29,7 +29,8 @@ export default {
     );
 
     if (!channels.size) {
-      return interaction.editReply({ content: 'No text channels found in this category.' });
+      replyMsg += '\n✅No **old tickets** found in this category';
+      return interaction.editReply({ content: replyMsg });
     }
 
     // Register each channel as a ticket
@@ -46,12 +47,12 @@ export default {
 
         let authorId = null;
         if (msg.embeds.length) {
-          const openedByField = msg.embeds[0].fields?.find(f => f.name === 'Opened by');
+          const openedByField = msg.embeds[0].fields?.find(f => f.name.toLowerCase() === 'opened by');
           if (openedByField) {
             authorId = openedByField.value.replace(/[<@!>]/g, '');
           }
         }
-        await Ticket.create({
+        const ticket = await Ticket.create({
           //   ticketId: channelName.replace(/\D/g, ''),
           guildId: interaction.guild.id,
           channelId: channel.id,
@@ -64,11 +65,16 @@ export default {
           closeReq: isClosed,
         });
         created++;
+        console.log(ticket);
       }
     }
 
-    return interaction.editReply({
-      content: `Registered ${created} channel(s) as tickets in the database.`,
+    replyMsg +=
+      `\n✅Registered ${created} channel(s) as tickets in the database.` +
+      '\n✅Ticket system setup complete!' +
+      '\n⚠️**Do Not forget to use /role add**';
+    interaction.editReply({
+      content: replyMsg,
     });
   },
 };
