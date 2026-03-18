@@ -18,11 +18,11 @@ export default {
         .setName('category')
         .setDescription('The category ID for tickets')
         .addChannelTypes(ChannelType.GuildCategory)
-        .setRequired(true)
+        .setRequired(true),
+    )
+    .addStringOption(option =>
+      option.setName('type').setDescription('The type of the ticket e.g"Apply ticket"').setRequired(false),
     ),
-  // .addStringOption(option =>
-  //   option.setName('roles').setDescription('Comma-separated role IDs that have access to tickets').setRequired(true)
-  // ),
 
   async execute(interaction, client) {
     let replyMsg;
@@ -35,12 +35,12 @@ export default {
 
     try {
       const categoryId = interaction.options.getChannel('category').id;
-      // const roles = interaction.options.getString('roles').split(/,\s*/);
 
       await interaction.deferReply({ ephemeral: true });
 
+      const type = interaction.options.getString('type') || 'Ticket';
       const embed = new EmbedBuilder()
-        .setTitle('Ticket')
+        .setTitle(type)
         .setDescription('Click the button to open a ticket!🎫')
         .setColor('#DBD42B');
 
@@ -63,6 +63,7 @@ export default {
         parentId: categoryChannel.id,
         deleteTicketsChannel: false,
         logs: false,
+        type: type,
       });
 
       console.log(ticketConfig);

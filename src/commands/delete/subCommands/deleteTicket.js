@@ -12,7 +12,7 @@ export default {
     }
 
     if (!ticketConfig.getDataValue('roles') || ticketConfig.getDataValue('roles') === '[]')
-      return interaction.reply({ content: 'No roles are set to manage tickets❌', ephemeral: true });
+      return interaction.editReply({ content: 'No roles are set to manage tickets❌', ephemeral: true });
     const roles = JSON.parse(ticketConfig.getDataValue('roles'));
     const isAllowed = interaction.member.roles.cache.some(role => roles.includes(role.id));
     if (!isAllowed) {
@@ -22,6 +22,8 @@ export default {
     if (interaction.channel.id !== ticket.getDataValue('channelId')) {
       return interaction.editReply('This is not a valid ticket channel.');
     }
+
+    if (!ticket.resolved) return interaction.editReply('you can not close an open ticket❌');
     await transcripts.execute(interaction.channel, ticket, ticketConfig, interaction.channel.guild);
     await interaction.editReply('OK!');
     await interaction.channel.send(`Deleting this ticket\nby a command from: <@${interaction.user.id}>`);
@@ -37,7 +39,7 @@ export default {
           if (embed.fields) {
             embed.fields.forEach(field => {
               newEmbed.addFields(
-                field.name === 'status:' ? { name: 'status:', value: 'Closed 🔏', inline: field.inline } : field
+                field.name === 'status:' ? { name: 'status:', value: 'Closed 🔏', inline: field.inline } : field,
               );
             });
           }

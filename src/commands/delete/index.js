@@ -10,35 +10,35 @@ import closedTicket from './subCommands/deleteClosedTickets.js';
 export default {
   data: new SlashCommandBuilder()
     .setName('delete')
-    .setDescription('Delete all closed tickets')
-    .addSubcommand(sub =>
-      sub
-        .setName('create-channel')
-        .setDescription('Creates a channel to delete all closed tickets')
-        .addChannelOption(option =>
-          option
-            .setName('category')
-            .setDescription('Choose the category to create the channel in.')
-            .addChannelTypes(ChannelType.GuildCategory)
-            .setRequired(true)
-        )
-    )
-    .addSubcommand(sub =>
-      sub
-        .setName('set-channel')
-        .setDescription('sets the delete channel for an existing channel')
-        .addChannelOption(option =>
-          option
-            .setName('channel')
-            .setDescription('Chose the channel. "leave blank for this channel"')
-            .addChannelTypes(ChannelType.GuildText)
-            .setRequired(false)
-        )
-    )
-    .addSubcommand(sub => sub.setName('stop-delete-channel').setDescription('Stops the delete closed ticket channel.'))
-    .addSubcommand(sub =>
-      sub.setName('closed-tickets').setDescription('Deletes all the closed ticket. Use it in the delete channel')
-    )
+    .setDescription('manage deleting tickets')
+    // .addSubcommand(sub =>
+    //   sub
+    //     .setName('create-channel')
+    //     .setDescription('Creates a channel to delete all closed tickets')
+    //     .addChannelOption(option =>
+    //       option
+    //         .setName('category')
+    //         .setDescription('Choose the category to create the channel in.')
+    //         .addChannelTypes(ChannelType.GuildCategory)
+    //         .setRequired(true)
+    //     )
+    // )
+    // .addSubcommand(sub =>
+    //   sub
+    //     .setName('set-channel')
+    //     .setDescription('sets the delete channel for an existing channel')
+    //     .addChannelOption(option =>
+    //       option
+    //         .setName('channel')
+    //         .setDescription('Chose the channel. "leave blank for this channel"')
+    //         .addChannelTypes(ChannelType.GuildText)
+    //         .setRequired(false)
+    //     )
+    // )
+    // .addSubcommand(sub => sub.setName('stop-delete-channel').setDescription('Stops the delete closed ticket channel.'))
+    // .addSubcommand(sub =>
+    //   sub.setName('closed-tickets').setDescription('Deletes all the closed ticket. Use it in the delete channel')
+    // )
     .addSubcommand(sub => sub.setName('ticket').setDescription('Delete the current ticket')),
 
   async execute(interaction) {

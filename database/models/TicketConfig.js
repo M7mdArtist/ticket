@@ -32,11 +32,14 @@ export default class TicketConfig extends Model {
         logsChannelId: {
           type: DataTypes.STRING,
         },
+        type: {
+          type: DataTypes.STRING,
+        },
       },
       {
         tableName: 'TicketConfigs',
         sequelize,
-      }
+      },
     );
   }
 }

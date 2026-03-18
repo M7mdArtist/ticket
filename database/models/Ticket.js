@@ -36,11 +36,14 @@ export default class Ticket extends Model {
         closeReq: {
           type: DataTypes.BOOLEAN,
         },
+        type: {
+          type: DataTypes.STRING,
+        },
       },
       {
         tableName: 'Tickets',
         sequelize,
-      }
+      },
     );
   }
 }
