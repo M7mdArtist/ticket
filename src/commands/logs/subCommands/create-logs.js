@@ -1,58 +1,56 @@
-import { SlashCommandBuilder, ChannelType, PermissionsBitField } from 'discord.js';
+import { ChannelType, PermissionsBitField } from 'discord.js';
 import TicketConfig from '../../../../database/models/TicketConfig.js';
 
 export default {
   async execute(interaction) {
     try {
-      const ticketConfig = await TicketConfig.findOne({ where: { logs: false, guildId: interaction.guild.id } });
+      await interaction.deferReply({ ephemeral: true });
+
       const categoryId = interaction.options.getChannel('category').id;
+      const type = interaction.options.getString('type');
+
+      // 1. Fetch config using the specific ticket type!
+      const ticketConfig = await TicketConfig.findOne({ where: { guildId: interaction.guild.id, type: type } });
 
       if (!ticketConfig) {
-        interaction.reply({
-          content: 'there is already a logs or system is not configured',
-          ephemeral: true,
-        });
-        return;
+        return interaction.editReply({ content: `No ticket system configured for type: **${type}** ❌` });
       }
 
-      if (!ticketConfig.getDataValue('roles') || ticketConfig.getDataValue('roles') === '[]')
-        return interaction.reply({ content: 'No roles are set to manage tickets❌', ephemeral: true });
+      // 2. Permission Check (Allows Staff OR Server Admins)
+      const allowedRoles = JSON.parse(ticketConfig.getDataValue('roles') || '[]');
+      const isAllowed =
+        interaction.member.roles.cache.some(role => allowedRoles.includes(role.id)) ||
+        interaction.member.permissions.has(PermissionsBitField.Flags.Administrator);
 
-      const allowedRoles = JSON.parse(ticketConfig.getDataValue('roles'));
-      const isAllowed = interaction.member.roles.cache.some(role => allowedRoles.includes(role.id));
-
-      if (isAllowed) {
-        if (ticketConfig) {
-          const logsChannel = await interaction.guild.channels.create({
-            name: 'ticket-logs',
-            type: ChannelType.GuildText,
-            parent: categoryId,
-            permissionOverwrites: [
-              {
-                id: interaction.guild.id,
-                deny: [PermissionsBitField.Flags.ViewChannel],
-              },
-            ],
-          });
-
-          await ticketConfig.update({
-            logs: true,
-            logsChannelId: logsChannel.id,
-          });
-
-          interaction.reply({
-            content: `Created a logs channel <#${logsChannel.id}>`,
-            ephemeral: true,
-          });
-        }
-      } else {
-        interaction.reply({
-          content: 'you are not allowed to use this command',
-          ephemeral: true,
-        });
+      if (!isAllowed) {
+        return interaction.editReply({ content: 'You do not have permission to use this command ❌' });
       }
+
+      // 3. Create Channel
+      const logsChannel = await interaction.guild.channels.create({
+        name: `${type.toLowerCase()}-logs`, // Names it cleanly like "support-logs"
+        type: ChannelType.GuildText,
+        parent: categoryId,
+        permissionOverwrites: [
+          {
+            id: interaction.guild.id,
+            deny: [PermissionsBitField.Flags.ViewChannel],
+          },
+        ],
+      });
+
+      // 4. Update Database
+      await ticketConfig.update({
+        logs: true,
+        logsChannelId: logsChannel.id,
+      });
+
+      await interaction.editReply({
+        content: `Created a logs channel <#${logsChannel.id}> for **${type}** tickets ✅`,
+      });
     } catch (error) {
-      console.error('error while creating logs channel', error);
+      console.error('Error while creating logs channel', error);
+      await interaction.editReply({ content: 'An error occurred while creating the logs channel.' }).catch(() => null);
     }
   },
 };

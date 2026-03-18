@@ -1,44 +1,38 @@
-import { SlashCommandBuilder, ChannelType } from 'discord.js';
+import { PermissionsBitField } from 'discord.js';
 import TicketConfig from '../../../../database/models/TicketConfig.js';
 
 export default {
-  async execute(interaction, client) {
+  async execute(interaction) {
     try {
-      const ticketConfig = await TicketConfig.findOne({ where: { logs: false, guildId: interaction.guild.id } });
-      const channel = interaction.options.getChannel('channel') || interaction.channel;
+      await interaction.deferReply({ ephemeral: true });
+
+      const channel = interaction.options.getChannel('channel');
+      const type = interaction.options.getString('type');
+
+      const ticketConfig = await TicketConfig.findOne({ where: { guildId: interaction.guild.id, type: type } });
 
       if (!ticketConfig) {
-        interaction.reply({
-          content: 'there is already a logs or system is not configured',
-          ephemeral: true,
-        });
+        return interaction.editReply({ content: `No ticket system configured for type: **${type}** ❌` });
       }
 
-      if (!ticketConfig.getDataValue('roles') || ticketConfig.getDataValue('roles') === '[]')
-        return interaction.reply({ content: 'No roles are set to manage tickets❌', ephemeral: true });
+      const allowedRoles = JSON.parse(ticketConfig.getDataValue('roles') || '[]');
+      const isAllowed =
+        interaction.member.roles.cache.some(role => allowedRoles.includes(role.id)) ||
+        interaction.member.permissions.has(PermissionsBitField.Flags.Administrator);
 
-      const allowedRoles = JSON.parse(ticketConfig.getDataValue('roles'));
-      const isAllowed = interaction.member.roles.cache.some(role => allowedRoles.includes(role.id));
-
-      if (isAllowed) {
-        if (ticketConfig) {
-          await ticketConfig.update({
-            logs: true,
-            logsChannelId: channel.id,
-          });
-          interaction.reply({
-            content: `logs channel set to <#${channel.id}>`,
-            ephemeral: true,
-          });
-        }
-      } else {
-        interaction.reply({
-          content: `you don't have permission to use this command`,
-          ephemeral: true,
-        });
+      if (!isAllowed) {
+        return interaction.editReply({ content: `You do not have permission to use this command ❌` });
       }
+
+      await ticketConfig.update({
+        logs: true,
+        logsChannelId: channel.id,
+      });
+
+      await interaction.editReply({ content: `Logs for **${type}** tickets set to <#${channel.id}> ✅` });
     } catch (error) {
-      console.error('error while setting the logs', error);
+      console.error('Error while setting the logs', error);
+      await interaction.editReply({ content: 'An error occurred while setting the logs.' }).catch(() => null);
     }
   },
 };

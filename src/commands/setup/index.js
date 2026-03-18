@@ -21,58 +21,57 @@ export default {
         .setRequired(true),
     )
     .addStringOption(option =>
-      option.setName('type').setDescription('The type of the ticket e.g"Apply ticket"').setRequired(false),
+      option.setName('type').setDescription('The type of the ticket (e.g., "Support")').setRequired(false),
     ),
 
-  async execute(interaction, client) {
-    let replyMsg;
+  async execute(interaction) {
+    // 1. Check Permissions
     if (interaction.guild.ownerId !== interaction.user.id) {
       return interaction.reply({
-        content: 'Only server owner👑 can use this command',
+        content: 'Only the server owner 👑 can use this command.',
         ephemeral: true,
       });
     }
 
     try {
-      const categoryId = interaction.options.getChannel('category').id;
-
+      // Defer instantly to prevent interaction timeout
       await interaction.deferReply({ ephemeral: true });
 
+      const categoryChannel = interaction.options.getChannel('category');
       const type = interaction.options.getString('type') || 'Ticket';
+
+      // 2. Setup the UI
       const embed = new EmbedBuilder()
-        .setTitle(type)
-        .setDescription('Click the button to open a ticket!🎫')
+        .setTitle(`${type} System`)
+        .setDescription(`Click the button below to open a ${type} ticket! 🎫`)
         .setColor('#DBD42B');
 
       const openButton = new ButtonBuilder().setCustomId('open').setLabel('Open Ticket').setStyle(ButtonStyle.Primary);
       const row = new ActionRowBuilder().addComponents(openButton);
 
+      // Send the panel to the channel
       const msg = await interaction.channel.send({ embeds: [embed], components: [row] });
 
-      const categoryChannel = client.channels.cache.get(categoryId);
-
-      if (!categoryChannel) {
-        throw new Error('Invalid category ID');
-      }
-
-      const ticketConfig = TicketConfig.create({
+      // 3. Save Configuration to Database (Added the missing 'await' here!)
+      await TicketConfig.create({
         messageId: msg.id,
         channelId: interaction.channel.id,
         guildId: interaction.guild.id,
-        // roles: JSON.stringify(roles),
         parentId: categoryChannel.id,
         deleteTicketsChannel: false,
         logs: false,
         type: type,
+        roles: '[]', // Initialize with an empty array so JSON.parse doesn't break later
       });
 
-      console.log(ticketConfig);
-      replyMsg = `\n⏳Registering **old tickets** in **${categoryChannel.name}** category...`;
+      let replyMsg = `✅ **${type} System** deployed successfully!\n⏳ Registering **old tickets** in **${categoryChannel.name}**...`;
       await interaction.editReply({ content: replyMsg });
-      reg.execute(interaction, categoryChannel, replyMsg);
+
+      // 4. Register Old Tickets (Pass the 'type' to the reg utility)
+      await reg.execute(interaction, categoryChannel, type, replyMsg);
     } catch (err) {
       console.error('Setup error:', err);
-      interaction.editReply({ content: `Error during setup: ${err.message}` });
+      await interaction.editReply({ content: `❌ Error during setup: ${err.message}` }).catch(() => null);
     }
   },
 };

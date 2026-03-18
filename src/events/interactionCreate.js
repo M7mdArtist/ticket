@@ -15,6 +15,17 @@ export default {
         if (!button) return;
         await button.execute(interaction, client);
       }
+      // --- Auto Complete ---
+      if (interaction.isAutocomplete()) {
+        const command = interaction.client.commands.get(interaction.commandName);
+        if (!command) return;
+
+        try {
+          await command.autocomplete(interaction);
+        } catch (error) {
+          console.error(error);
+        }
+      }
     } catch (err) {
       console.error(`❌ Error handling interaction:`, err);
 
