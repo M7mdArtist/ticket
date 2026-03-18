@@ -1,4 +1,4 @@
-import { SlashCommandBuilder, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle } from 'discord.js';
+import { SlashCommandBuilder, EmbedBuilder } from 'discord.js';
 
 export default {
   data: new SlashCommandBuilder().setName('help').setDescription('List of all available commands'),
@@ -16,7 +16,8 @@ export default {
         },
         {
           name: '🎫 Ticket Management',
-          value: '` /ticket ` - General ticket settings and overrides.\n` /delete ` - Cleanup and deletion protocols.',
+          value:
+            '` /ticket ` - General ticket settings and overrides.\n` /user   ` - Add, remove, or list extra users in a ticket.\n` /delete ` - Cleanup and deletion protocols.',
         },
         {
           name: '📜 Logging',
@@ -28,7 +29,7 @@ export default {
 
     await interaction.reply({
       embeds: [helpEmbed],
-      ephemeral: true,
+      ephemeral: true, // Only the user who typed /help can see this menu!
     });
   },
 };
