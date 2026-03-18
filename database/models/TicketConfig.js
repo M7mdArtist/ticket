@@ -35,6 +35,9 @@ export default class TicketConfig extends Model {
         type: {
           type: DataTypes.STRING,
         },
+        closedCategoryId: {
+          type: DataTypes.STRING,
+        },
       },
       {
         tableName: 'TicketConfigs',

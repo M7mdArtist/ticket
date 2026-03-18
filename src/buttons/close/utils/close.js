@@ -39,7 +39,7 @@ export default {
         new ButtonBuilder().setCustomId('cancelClose').setLabel('❌ Cancel').setStyle(ButtonStyle.Secondary),
       );
 
-      // 2. Attach collector directly to the response message, NOT the channel
+      // 2. Attach collector directly to the response message
       const response = await interaction.editReply({
         content: 'Are you sure you want to close this ticket?',
         components: [row],
@@ -75,15 +75,34 @@ export default {
               delete userTickets[ticketKey];
             }
 
-            // --- Permissions (Non-blocking) ---
-            ticketChannel.permissionOverwrites
+            // --- Permissions (Hide from author AND remove added users) ---
+
+            // 1. Explicitly hide it from the ticket creator
+            await ticketChannel.permissionOverwrites
               .edit(ticket.authorId, {
                 [PermissionsBitField.Flags.ViewChannel]: false,
               })
               .catch(() => null);
 
-            // --- Rename (Non-blocking: Crucial to bypass the 10-minute rate limit freeze) ---
-            ticketChannel.edit({ name: `${ticketChannel.name}-closed` }).catch(() => null);
+            // 2. Scan for and remove any extra users added via /user add
+            const overwrites = ticketChannel.permissionOverwrites.cache;
+            for (const [id, overwrite] of overwrites) {
+              // overwrite.type === 1 means it's a specific User (not a Role)
+              if (
+                overwrite.type === 1 &&
+                id !== ticket.authorId &&
+                id !== interaction.client.user.id // Don't remove the bot itself!
+              ) {
+                await ticketChannel.permissionOverwrites.delete(id).catch(() => null);
+              }
+            }
+
+            // 👇 THE CATEGORY SHIFT METHOD (Moves channel to Closed Category) 👇
+            if (ticketConfig.closedCategoryId) {
+              await ticketChannel
+                .setParent(ticketConfig.closedCategoryId, { lockPermissions: false })
+                .catch(() => null);
+            }
 
             // --- Transcript ---
             try {
@@ -130,6 +149,7 @@ export default {
               }
             }
 
+            // --- DM Author ---
             try {
               const author = await interaction.guild.members.fetch(ticket.authorId);
               await author.send(`Your ticket <#${ticketChannel.id}> has been closed by <@${interaction.user.id}>.`);
