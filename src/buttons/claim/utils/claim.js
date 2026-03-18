@@ -4,135 +4,95 @@ import TicketConfig from '../../../../database/models/TicketConfig.js';
 
 export default {
   async execute(interaction) {
+    console.log('\n=========================================');
+    console.log('🙋‍♂️ CLAIM PROCESS INITIATED');
+    console.log('=========================================');
+
     try {
-      // Find ticket for the current channel
-      const ticket = await Ticket.findOne({
-        where: {
-          channelId: interaction.channel.id,
-          resolved: false,
-          claimed: false,
-        },
-      });
+      // 1. INSTANTLY acknowledge
+      await interaction.deferReply({ ephemeral: true });
 
-      const ticketConfig = await TicketConfig.findOne({ where: { guildId: interaction.guild.id } });
-      if (!ticketConfig) return interaction.reply({ content: 'Ticket system is not set up❌', ephemeral: true });
-      if (!ticketConfig.getDataValue('roles') || ticketConfig.getDataValue('roles') === '[]')
-        return interaction.reply({ content: 'No roles are set to manage tickets❌', ephemeral: true });
-      const allowedRoles = JSON.parse(ticketConfig.getDataValue('roles'));
-      const isAllowed = interaction.member.roles.cache.some(role => allowedRoles.includes(role.id));
-
-      if (!isAllowed) {
-        return interaction.reply({
-          content: `You don't have permission to use this command`,
-          ephemeral: true,
-        });
-      }
-
+      // 2. Fetch Ticket First
+      const ticket = await Ticket.findOne({ where: { channelId: interaction.channel.id, resolved: false } });
       if (!ticket) {
-        return interaction.reply({
-          content: 'This is not a valid ticket channel or the ticket is already closed/claimed',
-          ephemeral: true,
-        });
+        return interaction.editReply({ content: 'This is not a valid open ticket channel.' });
       }
 
+      if (ticket.claimed) {
+        return interaction.editReply({ content: `This ticket is already claimed by <@${ticket.claimerId}>.` });
+      }
+
+      // 3. Fetch Config (Using specific ticket type!)
+      const ticketConfig = await TicketConfig.findOne({ where: { guildId: interaction.guild.id, type: ticket.type } });
+      if (!ticketConfig) {
+        return interaction.editReply({ content: 'Ticket system is not set up ❌' });
+      }
+
+      // 4. Check Permissions
+      const allowedRoles = JSON.parse(ticketConfig.getDataValue('roles') || '[]');
+      const isAllowed = interaction.member.roles.cache.some(role => allowedRoles.includes(role.id));
+      if (!isAllowed) {
+        return interaction.editReply({ content: `You don't have permission to use this command ❌` });
+      }
+
+      // 5. Update Database
+      console.log(`[Task A] Updating Database for claimer: ${interaction.user.tag}`);
+      await ticket.update({ claimed: true, claimerId: interaction.user.id });
+
+      // 6. Update Main Embed
+      console.log('[Task B] Updating Main Ticket Embed...');
       const ticketMsgId = ticket.getDataValue('ticketMsgId');
-      const ticketMsg = await interaction.channel.messages.fetch(ticketMsgId);
-      if (ticketMsg) {
-        const ticketEmbed = ticketMsg?.embeds[0];
-
-        // rebuild embed
-        const newEmbed = new EmbedBuilder()
-          .setTitle(ticketEmbed.title ?? null)
-          .setDescription(ticketEmbed.description ?? null)
-          .setColor('#226699');
-
-        if (ticketEmbed.footer) newEmbed.setFooter(ticketEmbed.footer);
-        if (ticketEmbed.timestamp) newEmbed.setTimestamp(new Date(ticketEmbed.timestamp));
-
-        // copy fields but replace claimed by
-        ticketEmbed.fields?.forEach(field => {
-          if (field.name.toLowerCase() === 'claimed by')
-            newEmbed.addFields({
-              name: 'Claimed by:',
-              value: `<@${interaction.user.id}> ☑️`,
-              inline: field.inline,
-            });
-          else newEmbed.addFields(field);
-        });
-
-        await ticketMsg.edit({ embeds: [newEmbed] });
-      }
-      // find the ticket message in channel
-      //   const messages = await interaction.channel.messages.fetch({ limit: 10 });
-      //   const ticketMsg = messages.find(m => m.content.includes('🎫 This ticket was opened by'));
-
-      //   if (!ticketMsg) {
-      //     return interaction.reply({
-      //       content: 'Could not find the ticket message.',
-      //       ephemeral: true,
-      //     });
-      //   }
-
-      //   await ticketMsg.edit(
-      //     `## 🎫 This ticket was opened by <@${ticket.authorId}> \n > 💾 Your ticket will be saved. \n React with this emoji 🔏 to close the ticket.\n Ticket claimed by: ${interaction.user}`
-      //   );
-
-      await ticket.update({
-        claimed: true,
-        claimerId: interaction.user.id,
-      });
-
-      // update logs embed if exists
-      const logMsgId = ticket.getDataValue('logId');
-
-      if (logMsgId) {
-        try {
-          const logsChannel = await interaction.guild.channels.fetch(ticketConfig.getDataValue('logsChannelId'));
-          const logMsg = await logsChannel.messages.fetch(logMsgId);
-          const oldEmbed = logMsg.embeds[0];
-
-          if (oldEmbed) {
-            // rebuild embed
-            const newEmbed = new EmbedBuilder()
-              .setTitle(oldEmbed.title ?? null)
-              .setDescription(oldEmbed.description ?? null)
-              .setColor('#226699');
-
-            if (oldEmbed.footer) newEmbed.setFooter(oldEmbed.footer);
-            if (oldEmbed.timestamp) newEmbed.setTimestamp(oldEmbed.timestamp);
-
-            // copy fields but replace claimed by
-            oldEmbed.fields?.forEach(field => {
-              if (field.name.toLowerCase().includes('claimed by')) {
-                newEmbed.addFields({
-                  name: 'Claimed by',
-                  value: `<@${interaction.user.id}> ☑️`,
-                  inline: field.inline,
-                });
-              } else {
-                newEmbed.addFields(field);
-              }
-            });
-
-            await logMsg.edit({ embeds: [newEmbed] });
-          }
-        } catch (error) {
-          console.error('Error while editing the embed "claim":', error);
+      if (ticketMsgId) {
+        const ticketMsg = await interaction.channel.messages.fetch(ticketMsgId).catch(() => null);
+        if (ticketMsg?.embeds[0]) {
+          const newEmbed = EmbedBuilder.from(ticketMsg.embeds[0])
+            .setColor('#226699') // Blue for claimed
+            .setFields(
+              ticketMsg.embeds[0].fields.map(f =>
+                f.name.toLowerCase().includes('claimed by') ? { ...f, value: `<@${interaction.user.id}> ☑️` } : f,
+              ),
+            );
+          await ticketMsg.edit({ embeds: [newEmbed] }).catch(() => null);
+          console.log('✅ Main embed updated.');
         }
       }
 
-      await interaction.reply({
-        content: 'You have claimed this ticket!',
-        ephemeral: true,
-      });
-    } catch (error) {
-      console.error('Error claiming ticket:', error);
-      if (!interaction.replied) {
-        await interaction.reply({
-          content: 'An error occurred while claiming the ticket.',
-          ephemeral: true,
-        });
+      // 7. Update Logs
+      console.log('[Task C] Updating Mod Logs...');
+      if (ticket.logId && ticketConfig.logsChannelId) {
+        try {
+          const logsChannel = await interaction.guild.channels.fetch(ticketConfig.logsChannelId).catch(() => null);
+          if (logsChannel) {
+            const logMsg = await logsChannel.messages.fetch(ticket.logId).catch(() => null);
+            if (logMsg?.embeds[0]) {
+              const logEmbed = EmbedBuilder.from(logMsg.embeds[0])
+                .setColor('#226699')
+                .setFields(
+                  logMsg.embeds[0].fields.map(f =>
+                    f.name.toLowerCase().includes('claimed by') ? { ...f, value: `<@${interaction.user.id}> ☑️` } : f,
+                  ),
+                );
+              await logMsg.edit({ embeds: [logEmbed] }).catch(() => null);
+              console.log('✅ Logs updated.');
+            }
+          }
+        } catch (error) {
+          console.log('⚠️ Logs Error:', error.message);
+        }
       }
+
+      // 8. Final Output
+      await interaction.editReply({ content: 'You have successfully claimed this ticket! ☑️' });
+
+      // Optional: Send a public message so the user knows who is helping them
+      await interaction.channel.send({
+        content: `👋 <@${ticket.authorId}>, your ticket has been claimed by <@${interaction.user.id}>.`,
+      });
+
+      console.log('🎉 CLAIM SEQUENCE COMPLETE\n');
+    } catch (error) {
+      console.error('❌ Error claiming ticket:', error);
+      await interaction.editReply({ content: 'An error occurred while claiming the ticket.' }).catch(() => null);
     }
   },
 };
