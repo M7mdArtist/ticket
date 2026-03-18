@@ -24,8 +24,17 @@ await db.authenticate();
 console.log('Connected to DB');
 Ticket.init(db);
 TicketConfig.init(db);
-await Ticket.sync({ force: type });
-await TicketConfig.sync({ force: type });
+if (type) {
+  // If in DEV mode: Wipe it and start fresh
+  console.log('🛠️ Dev mode detected: Rebuilding database... (force)');
+  await Ticket.sync({ force: true });
+  await TicketConfig.sync({ force: true });
+} else {
+  // If in PROD mode: Safely inject new columns without dropping data
+  console.log('🚀 Prod mode detected: Updating database safely... (alter)');
+  await Ticket.sync({ alter: true });
+  await TicketConfig.sync({ alter: true });
+}
 
 // Load handlers
 await loadEvents(client);
