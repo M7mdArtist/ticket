@@ -21,7 +21,6 @@ export default {
           value:
             '`/category add` - Create a new ticket type\n' +
             '`/category remove` - Delete a ticket type\n' +
-            '`/category list` - View all active categories\n' +
             '`/panel` - Send the ticket selection dropdown\n' +
             '`/logs set` - Configure logging for a category or global system',
           inline: false,
