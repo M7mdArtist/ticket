@@ -1,4 +1,5 @@
 import { PermissionsBitField } from 'discord.js';
+import TicketCategory from '../../../../database/models/TicketCategory.js';
 import TicketConfig from '../../../../database/models/TicketConfig.js';
 
 export default {
@@ -9,30 +10,29 @@ export default {
       const channel = interaction.options.getChannel('channel');
       const type = interaction.options.getString('type');
 
-      const ticketConfig = await TicketConfig.findOne({ where: { guildId: interaction.guild.id, type: type } });
+      // --- LOGIC FOR GLOBAL SYSTEM ---
+      if (type === 'Dynamic-Panel') {
+        const ticketConfig = await TicketConfig.findOne({
+          where: { guildId: interaction.guild.id, type: 'Dynamic-Panel' },
+        });
+        if (!ticketConfig)
+          return interaction.editReply({ content: '❌ System not initialized. Please run `/panel` first.' });
 
-      if (!ticketConfig) {
-        return interaction.editReply({ content: `No ticket system configured for type: **${type}** ❌` });
+        await ticketConfig.update({ logs: true, logsChannelId: channel.id });
+        return interaction.editReply({
+          content: `✅ **Global System Logs** have been set to <#${channel.id}>. Role changes will now be logged here!`,
+        });
       }
 
-      const allowedRoles = JSON.parse(ticketConfig.getDataValue('roles') || '[]');
-      const isAllowed =
-        interaction.member.roles.cache.some(role => allowedRoles.includes(role.id)) ||
-        interaction.member.permissions.has(PermissionsBitField.Flags.Administrator);
+      // --- LOGIC FOR CATEGORIES ---
+      const ticketCat = await TicketCategory.findOne({ where: { guildId: interaction.guild.id, name: type } });
+      if (!ticketCat) return interaction.editReply({ content: `❌ Category **${type}** not found.` });
 
-      if (!isAllowed) {
-        return interaction.editReply({ content: `You do not have permission to use this command ❌` });
-      }
-
-      await ticketConfig.update({
-        logs: true,
-        logsChannelId: channel.id,
-      });
-
-      await interaction.editReply({ content: `Logs for **${type}** tickets set to <#${channel.id}> ✅` });
+      await ticketCat.update({ logs: true, logsChannelId: channel.id });
+      await interaction.editReply({ content: `✅ Logs for **${type}** tickets set to <#${channel.id}>.` });
     } catch (error) {
-      console.error('Error while setting the logs', error);
-      await interaction.editReply({ content: 'An error occurred while setting the logs.' }).catch(() => null);
+      console.error(error);
+      await interaction.editReply({ content: '❌ An error occurred.' });
     }
   },
 };

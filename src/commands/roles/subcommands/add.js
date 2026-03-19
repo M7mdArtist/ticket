@@ -4,73 +4,52 @@ import { EmbedBuilder } from 'discord.js';
 export default {
   async execute(interaction) {
     try {
-      if (interaction.user.id !== interaction.guild.ownerId)
-        return interaction.reply({ content: 'Only server owner👑 can use this command', ephemeral: true });
+      await interaction.deferReply({ ephemeral: true });
+
+      if (interaction.user.id !== interaction.guild.ownerId) {
+        return interaction.editReply({ content: 'Only the server owner 👑 can manage staff roles.' });
+      }
+
       const role = interaction.options.getRole('role');
-      if (!role) {
-        return interaction.reply({
-          content: 'Invalid role provided❌',
-          ephemeral: true,
-        });
+      let ticketConfig = await TicketConfig.findOne({
+        where: { guildId: interaction.guild.id, type: 'Dynamic-Panel' },
+      });
+
+      if (!ticketConfig) return interaction.editReply({ content: '❌ Run `/panel` first.' });
+
+      let rolesArr = JSON.parse(ticketConfig.roles || '[]');
+      if (rolesArr.includes(role.id)) {
+        return interaction.editReply({ content: `✅ <@&${role.id}> is already a staff role.` });
       }
 
-      // Fetch the ticket config for the guild
-      const ticketConfig = await TicketConfig.findOne({ where: { guildId: interaction.guild.id } });
+      // Update Database
+      rolesArr.push(role.id);
+      await ticketConfig.update({ roles: JSON.stringify(rolesArr) });
 
-      if (!ticketConfig) {
-        return interaction.reply({ content: 'Setup the ticket system first❌', ephemeral: true });
-      }
-      let replyMsg = '⏳ Adding role...';
-      await interaction.reply({ content: replyMsg, ephemeral: true });
+      // --- LOGGING LOGIC ---
+      if (ticketConfig.logs && ticketConfig.logsChannelId) {
+        const logChannel = await interaction.guild.channels.fetch(ticketConfig.logsChannelId).catch(() => null);
+        if (logChannel) {
+          const logEmbed = new EmbedBuilder()
+            .setTitle('🔐 Staff Role Added')
+            .setDescription(`A new staff role has been authorized for the ticket system.`)
+            .addFields(
+              { name: '👤 Action by', value: `<@${interaction.user.id}>`, inline: true },
+              { name: '🛡️ Role Added', value: `<@&${role.id}>`, inline: true },
+              { name: '🆔 Role ID', value: `\`${role.id}\``, inline: true },
+            )
+            .setColor('#77B255')
+            .setTimestamp()
+            .setFooter({ text: 'System Configuration Audit' });
 
-      // Parse roles array from DB or initialize as empty array
-      let rolesArr = [];
-      if (ticketConfig.roles) {
-        try {
-          rolesArr = Array.isArray(ticketConfig.roles) ? ticketConfig.roles : JSON.parse(ticketConfig.roles);
-        } catch {
-          rolesArr = [];
+          await logChannel.send({ embeds: [logEmbed] });
         }
       }
 
-      if (rolesArr.includes(role.id)) {
-        replyMsg += `\n✅Role is already added`;
-        return interaction.editReply({
-          content: replyMsg,
-          ephemeral: true,
-        });
-      }
-
-      rolesArr.push(role.id);
-
-      await TicketConfig.update({ roles: JSON.stringify(rolesArr) }, { where: { guildId: interaction.guild.id } });
-
-      replyMsg += `\nAdded ${role.name} to ticket roles✅`;
-      interaction.editReply({ content: replyMsg, ephemeral: true });
-      if (!ticketConfig.logs) {
-        replyMsg += `\n⚠️ Enable logs to get notified when a role is added`;
-        return interaction.editReply({ content: replyMsg, ephemeral: true });
-      }
-      if (ticketConfig.logs) {
-        const logsChannelId = ticketConfig.logsChannelId;
-        if (!logsChannelId) return;
-        const logsChannel = interaction.guild.channels.cache.get(logsChannelId);
-        if (!logsChannel) return;
-        const embed = new EmbedBuilder()
-          .setColor(0x00ff00)
-          .setTitle('Role Added Successfully')
-          .setDescription(
-            `**User:** ${interaction.user.tag}\n**Role Added:** <@&${role.id}>\n\nTo view all available roles, use \`/roles list\``
-          )
-          .setTimestamp()
-          .setFooter({ text: 'Role Management' });
-        logsChannel.send({ embeds: [embed] });
-        replyMsg += `\n✅Logged the action in <#${logsChannelId}>`;
-        return interaction.editReply({ content: replyMsg, ephemeral: true });
-      }
+      await interaction.editReply({ content: `✅ Successfully added <@&${role.id}> to staff roles.` });
     } catch (error) {
-      console.error('Error adding role:', error);
-      return interaction.reply({ content: 'There was an error while adding the role❌', ephemeral: true });
+      console.error(error);
+      await interaction.editReply({ content: '❌ Error adding role.' });
     }
   },
 };

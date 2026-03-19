@@ -1,4 +1,5 @@
 import { PermissionsBitField } from 'discord.js';
+import TicketCategory from '../../../../database/models/TicketCategory.js';
 import TicketConfig from '../../../../database/models/TicketConfig.js';
 
 export default {
@@ -7,34 +8,28 @@ export default {
       await interaction.deferReply({ ephemeral: true });
 
       const type = interaction.options.getString('type');
-      const ticketConfig = await TicketConfig.findOne({ where: { guildId: interaction.guild.id, type: type } });
-
-      if (!ticketConfig) {
-        return interaction.editReply({ content: `No ticket system configured for type: **${type}** ❌` });
-      }
-
-      if (!ticketConfig.logs) {
-        return interaction.editReply({ content: `Logs are already disabled for **${type}** tickets.` });
-      }
-
-      const allowedRoles = JSON.parse(ticketConfig.getDataValue('roles') || '[]');
-      const isAllowed =
-        interaction.member.roles.cache.some(role => allowedRoles.includes(role.id)) ||
-        interaction.member.permissions.has(PermissionsBitField.Flags.Administrator);
-
-      if (!isAllowed) {
-        return interaction.editReply({ content: `You do not have permission to use this command ❌` });
-      }
-
-      await ticketConfig.update({
-        logs: false,
-        logsChannelId: null,
+      const ticketCat = await TicketCategory.findOne({ where: { guildId: interaction.guild.id, name: type } });
+      const panelConfig = await TicketConfig.findOne({
+        where: { guildId: interaction.guild.id, type: 'Dynamic-Panel' },
       });
 
-      await interaction.editReply({ content: `Logging stopped for **${type}** tickets 🛑` });
+      if (!ticketCat || !ticketCat.logs) {
+        return interaction.editReply({ content: `Logs are not enabled for **${type}**.` });
+      }
+
+      const allowedRoles = JSON.parse(panelConfig?.getDataValue('roles') || '[]');
+      if (
+        !interaction.member.permissions.has(PermissionsBitField.Flags.Administrator) &&
+        !interaction.member.roles.cache.some(r => allowedRoles.includes(r.id))
+      ) {
+        return interaction.editReply({ content: 'No permission. ❌' });
+      }
+
+      await ticketCat.update({ logs: false, logsChannelId: null });
+
+      await interaction.editReply({ content: `Logging stopped for **${type}** 🛑` });
     } catch (error) {
-      console.error('Error while stopping logs', error);
-      await interaction.editReply({ content: 'An error occurred while stopping the logs.' }).catch(() => null);
+      console.error(error);
     }
   },
 };

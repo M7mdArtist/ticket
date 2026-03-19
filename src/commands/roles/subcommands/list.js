@@ -1,27 +1,34 @@
-import { EmbedBuilder } from 'discord.js';
 import TicketConfig from '../../../../database/models/TicketConfig.js';
+import { EmbedBuilder } from 'discord.js';
 
 export default {
   async execute(interaction) {
-    const ticketConfig = await TicketConfig.findOne({ where: { guildId: interaction.guild.id } });
-    if (!ticketConfig)
-      return interaction.reply({ content: 'Ticket system is not configured for this server.❌', ephemeral: true });
+    try {
+      await interaction.deferReply({ ephemeral: true });
 
-    let rolesArr = [];
-    if (ticketConfig.roles) {
-      try {
-        rolesArr = Array.isArray(ticketConfig.roles) ? ticketConfig.roles : JSON.parse(ticketConfig.roles);
-      } catch {
-        rolesArr = [];
+      const ticketConfig = await TicketConfig.findOne({
+        where: { guildId: interaction.guild.id, type: 'Dynamic-Panel' },
+      });
+
+      const rolesArr = JSON.parse(ticketConfig?.roles || '[]');
+
+      if (rolesArr.length === 0) {
+        return interaction.editReply({ content: '⚠️ No staff roles have been configured yet.' });
       }
-    }
 
-    if (rolesArr.length === 0) {
-      const embed = new EmbedBuilder().setTitle('Roles List').setDescription('No roles found.').setColor('#ff0000');
-      return interaction.reply({ embeds: [embed], ephemeral: true });
+      // Convert IDs to Mentions
+      const roleMentions = rolesArr.map(id => `• <@&${id}> (\`${id}\`)`).join('\n');
+
+      const listEmbed = new EmbedBuilder()
+        .setTitle('📋 Authorized Staff Roles')
+        .setDescription('The following roles have permission to claim, close, and manage tickets:\n\n' + roleMentions)
+        .setColor('#5865F2')
+        .setFooter({ text: 'Use /role add to add more' });
+
+      await interaction.editReply({ embeds: [listEmbed] });
+    } catch (error) {
+      console.error(error);
+      await interaction.editReply({ content: '❌ Error fetching role list.' });
     }
-    const rolesList = rolesArr.map((roleId, index) => `${index + 1}. <@&${roleId}>`).join('\n');
-    const embed = new EmbedBuilder().setTitle('Roles List').setDescription(rolesList).setColor('#00ff00');
-    return interaction.reply({ embeds: [embed], ephemeral: true });
   },
 };

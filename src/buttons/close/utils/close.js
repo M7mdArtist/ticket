@@ -1,187 +1,132 @@
 import Ticket from '../../../../database/models/Ticket.js';
 import TicketConfig from '../../../../database/models/TicketConfig.js';
+import TicketCategory from '../../../../database/models/TicketCategory.js';
 import { EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, PermissionsBitField } from 'discord.js';
 import transcriptHandler from '../../../utils/transcripts.js';
 
 export default {
   async execute(interaction, userTickets) {
     try {
-      // 1. Instantly defer to prevent "Interaction Failed"
       await interaction.deferReply({ ephemeral: true });
 
-      const ticket = await Ticket.findOne({
-        where: { channelId: interaction.channel.id, resolved: false },
-      });
-      if (!ticket) return interaction.editReply({ content: 'No active ticket found in this channel.' });
+      const ticket = await Ticket.findOne({ where: { channelId: interaction.channel.id, resolved: false } });
+      if (!ticket) return interaction.editReply({ content: 'No active ticket found.' });
 
+      // 1. Fetch the specific Category Data for this ticket type
+      const categoryData = await TicketCategory.findOne({
+        where: { guildId: interaction.guild.id, name: ticket.type },
+      });
       const ticketConfig = await TicketConfig.findOne({
-        where: { guildId: interaction.guild.id, type: ticket.type },
+        where: { guildId: interaction.guild.id, type: 'Dynamic-Panel' },
       });
-      if (!ticketConfig) return interaction.editReply({ content: 'Ticket system is not configured.' });
 
+      // 2. Permission Check
       const member = await interaction.guild.members.fetch(interaction.user.id);
-      const allowedRoles = JSON.parse(ticketConfig.getDataValue('roles') || '[]');
+      const allowedRoles = JSON.parse(ticketConfig?.getDataValue('roles') || '[]');
       const isAllowed = member.roles.cache.some(role => allowedRoles.includes(role.id));
 
       if (!isAllowed) {
         if (!ticket.closeReq) {
           await ticket.update({ closeReq: true });
-          await interaction.editReply({ content: `You requested to close the ticket. Staff will handle it.` });
-          await interaction.channel.send(`<@${interaction.user.id}> requested to close the ticket`);
-        } else {
-          await interaction.editReply({ content: `You already requested to close the ticket.` });
+          await interaction.channel.send(
+            `⚠️ <@${interaction.user.id}> requested to close the ticket. Staff will handle it.`,
+          );
+          return interaction.editReply({ content: 'Close request sent.' });
         }
-        return;
+        return interaction.editReply({ content: 'A close request is already pending.' });
       }
 
+      // 3. Confirmation UI
       const row = new ActionRowBuilder().addComponents(
         new ButtonBuilder().setCustomId('confirmClose').setLabel('✅ Confirm').setStyle(ButtonStyle.Danger),
         new ButtonBuilder().setCustomId('cancelClose').setLabel('❌ Cancel').setStyle(ButtonStyle.Secondary),
       );
 
-      // 2. Attach collector directly to the response message
       const response = await interaction.editReply({
         content: 'Are you sure you want to close this ticket?',
         components: [row],
       });
-
       const collector = response.createMessageComponentCollector({
-        filter: i => ['confirmClose', 'cancelClose'].includes(i.customId) && i.user.id === interaction.user.id,
-        time: 15000,
+        filter: i => i.user.id === interaction.user.id,
+        time: 10000,
         max: 1,
       });
 
       collector.on('collect', async i => {
-        try {
-          await i.deferUpdate();
-          await interaction.editReply({ components: [] }).catch(() => null);
+        await i.deferUpdate();
+        if (i.customId === 'cancelClose') return interaction.editReply({ content: 'Cancelled.', components: [] });
 
-          if (i.customId === 'cancelClose') {
-            await i.followUp({ content: 'Closing canceled ❌', ephemeral: true });
-            return;
+        const ticketChannel = interaction.channel;
+        await ticket.update({ resolved: true });
+
+        // Memory Wipe
+        const ticketKey = `${interaction.guild.id}-${ticket.authorId}-${ticket.type}`;
+        delete userTickets[ticketKey];
+
+        // Permissions: Hide from User & Remove added users
+        await ticketChannel.permissionOverwrites
+          .edit(ticket.authorId, { [PermissionsBitField.Flags.ViewChannel]: false })
+          .catch(() => null);
+        ticketChannel.permissionOverwrites.cache.forEach(async ov => {
+          if (ov.type === 1 && ov.id !== ticket.authorId && ov.id !== interaction.client.user.id) {
+            await ticketChannel.permissionOverwrites.delete(ov.id).catch(() => null);
           }
+        });
 
-          if (i.customId === 'confirmClose') {
-            const ticketChannel = interaction.channel;
-            await i.followUp({ content: 'Processing closure...', ephemeral: true }).catch(() => null);
+        // 👇 DYNAMIC CATEGORY SHIFT 👇
+        if (categoryData?.closedCategoryId) {
+          await ticketChannel.setParent(categoryData.closedCategoryId, { lockPermissions: false }).catch(() => null);
+        }
 
-            // --- Database ---
-            await ticket.update({ resolved: true, closedMessageId: i.id });
+        // Update Embed Status
+        const ticketMsg = await ticketChannel.messages.fetch(ticket.ticketMsgId).catch(() => null);
+        if (ticketMsg?.embeds[0]) {
+          const closedEmbed = EmbedBuilder.from(ticketMsg.embeds[0])
+            .setColor('#A0041E')
+            .setFields(
+              ticketMsg.embeds[0].fields.map(f => (f.name.includes('Status') ? { ...f, value: 'Closed 🔏' } : f)),
+            );
+          await ticketMsg.edit({ embeds: [closedEmbed], components: [] }).catch(() => null);
+        }
 
-            // --- Memory Wipe (Using Ticket Type) ---
-            const ticketKey = `${interaction.guild.id}-${ticket.authorId}-${ticket.type}`;
-            if (userTickets[ticketKey]) {
-              if (userTickets[ticketKey].timeout) clearTimeout(userTickets[ticketKey].timeout);
-              delete userTickets[ticketKey];
-            }
-
-            // --- Permissions (Hide from author AND remove added users) ---
-
-            // 1. Explicitly hide it from the ticket creator
-            await ticketChannel.permissionOverwrites
-              .edit(ticket.authorId, {
-                [PermissionsBitField.Flags.ViewChannel]: false,
-              })
-              .catch(() => null);
-
-            // 2. Scan for and remove any extra users added via /user add
-            const overwrites = ticketChannel.permissionOverwrites.cache;
-            for (const [id, overwrite] of overwrites) {
-              // overwrite.type === 1 means it's a specific User (not a Role)
-              if (
-                overwrite.type === 1 &&
-                id !== ticket.authorId &&
-                id !== interaction.client.user.id // Don't remove the bot itself!
-              ) {
-                await ticketChannel.permissionOverwrites.delete(id).catch(() => null);
+        // Log Update & Transcript
+        try {
+          await transcriptHandler.execute(ticketChannel, ticket, ticketConfig, interaction.guild);
+        } catch (e) {}
+        if (categoryData?.logs && categoryData.logsChannelId && ticket.logId) {
+          try {
+            const logsChannel = await interaction.guild.channels.fetch(categoryData.logsChannelId).catch(() => null);
+            if (logsChannel) {
+              const logMsg = await logsChannel.messages.fetch(ticket.logId).catch(() => null);
+              if (logMsg) {
+                const closedLog = EmbedBuilder.from(logMsg.embeds[0])
+                  .setColor('#A0041E') // Red for closed
+                  .setFields(
+                    logMsg.embeds[0].fields.map(f => {
+                      if (f.name.includes('Status')) return { ...f, value: 'Closed 🔏' };
+                      return f;
+                    }),
+                  );
+                await logMsg.edit({ embeds: [closedLog] });
               }
             }
+          } catch (err) {
+            console.log('Log update failed in close.js');
+          }
+        }
 
-            // 👇 THE CATEGORY SHIFT METHOD (Moves channel to Closed Category) 👇
-            if (ticketConfig.closedCategoryId) {
-              await ticketChannel
-                .setParent(ticketConfig.closedCategoryId, { lockPermissions: false })
-                .catch(() => null);
-            }
-
-            // --- Transcript ---
-            try {
-              await transcriptHandler.execute(ticketChannel, ticket, ticketConfig, interaction.guild);
-            } catch (e) {
-              console.error('Transcript Error:', e);
-            }
-
-            // --- Update Main Embed ---
-            const ticketMsgId = ticket.getDataValue('ticketMsgId');
-            const ticketMsg = await ticketChannel.messages.fetch(ticketMsgId).catch(() => null);
-            if (ticketMsg?.embeds[0]) {
-              const newEmbed = EmbedBuilder.from(ticketMsg.embeds[0])
-                .setColor('#A0041E')
-                .setFields(
-                  ticketMsg.embeds[0].fields.map(f =>
-                    f.name.toLowerCase() === 'status' ? { ...f, value: 'Closed 🔏' } : f,
-                  ),
-                );
-              await ticketMsg.edit({ embeds: [newEmbed] }).catch(() => null);
-            }
-
-            // --- Update Logs ---
-            if (ticketConfig.getDataValue('logs') && ticket.getDataValue('logId') && ticketConfig.logsChannelId) {
-              try {
-                const logsChannel = await interaction.guild.channels
-                  .fetch(ticketConfig.logsChannelId)
-                  .catch(() => null);
-                if (logsChannel) {
-                  const logMsg = await logsChannel.messages.fetch(ticket.getDataValue('logId')).catch(() => null);
-                  if (logMsg?.embeds[0]) {
-                    const logEmbed = EmbedBuilder.from(logMsg.embeds[0])
-                      .setColor('#A0041E')
-                      .setFields(
-                        logMsg.embeds[0].fields.map(f =>
-                          f.name.toLowerCase() === 'status:' ? { ...f, value: 'Closed 🔏' } : f,
-                        ),
-                      );
-                    await logMsg.edit({ embeds: [logEmbed] }).catch(() => null);
-                  }
-                }
-              } catch (err) {
-                console.log('Log update failed');
-              }
-            }
-
-            // --- DM Author ---
-            try {
-              const author = await interaction.guild.members.fetch(ticket.authorId);
-              await author.send(`Your ticket <#${ticketChannel.id}> has been closed by <@${interaction.user.id}>.`);
-            } catch (err) {
-              /* ignore */
-            }
-
-            // --- Final Message & Restored Buttons ---
-            const afterClosing = new ActionRowBuilder().addComponents(
+        await ticketChannel.send({
+          content: 'Ticket closed successfully 🤙',
+          components: [
+            new ActionRowBuilder().addComponents(
               new ButtonBuilder().setCustomId('reOpen').setLabel('🔁 Reopen').setStyle(ButtonStyle.Primary),
               new ButtonBuilder().setCustomId('delete').setLabel('🔴 Delete').setStyle(ButtonStyle.Danger),
-            );
-
-            await ticketChannel.send({
-              content: 'Ticket closed successfully 🤙',
-              components: [afterClosing],
-            });
-          }
-        } catch (err) {
-          console.error(err);
-        }
+            ),
+          ],
+        });
       });
-
-      collector.on('end', collected => {
-        if (collected.size === 0) {
-          interaction
-            .editReply({ content: 'Ticket confirmation timed out. Closing canceled.', components: [] })
-            .catch(() => null);
-        }
-      });
-    } catch (error) {
-      console.error(error);
+    } catch (e) {
+      console.error(e);
     }
   },
 };

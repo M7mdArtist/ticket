@@ -4,81 +4,52 @@ import { EmbedBuilder } from 'discord.js';
 export default {
   async execute(interaction) {
     try {
-      if (interaction.user.id !== interaction.guild.ownerId)
-        return interaction.reply({ content: 'Only server owner👑 can use this command', ephemeral: true });
+      await interaction.deferReply({ ephemeral: true });
+
+      if (interaction.user.id !== interaction.guild.ownerId) {
+        return interaction.editReply({ content: 'Only the server owner 👑 can manage staff roles.' });
+      }
+
       const role = interaction.options.getRole('role');
-      if (!role) {
-        return interaction.reply({
-          content: 'Invalid role provided❌',
-          ephemeral: true,
-        });
+      let ticketConfig = await TicketConfig.findOne({
+        where: { guildId: interaction.guild.id, type: 'Dynamic-Panel' },
+      });
+
+      if (!ticketConfig) return interaction.editReply({ content: '❌ System not configured.' });
+
+      let rolesArr = JSON.parse(ticketConfig.roles || '[]');
+      if (!rolesArr.includes(role.id)) {
+        return interaction.editReply({ content: `❌ <@&${role.id}> is not a staff role.` });
       }
 
-      // Fetch the ticket config for the guild
-      const ticketConfig = await TicketConfig.findOne({ where: { guildId: interaction.guild.id } });
+      // Update Database
+      rolesArr = rolesArr.filter(id => id !== role.id);
+      await ticketConfig.update({ roles: JSON.stringify(rolesArr) });
 
-      if (!ticketConfig) {
-        return interaction.reply({ content: 'Setup the ticket system first❌', ephemeral: true });
-      }
+      // --- LOGGING LOGIC ---
+      if (ticketConfig.logs && ticketConfig.logsChannelId) {
+        const logChannel = await interaction.guild.channels.fetch(ticketConfig.logsChannelId).catch(() => null);
+        if (logChannel) {
+          const logEmbed = new EmbedBuilder()
+            .setTitle('🗑️ Staff Role Removed')
+            .setDescription(`A staff role has been de-authorized.`)
+            .addFields(
+              { name: '👤 Action by', value: `<@${interaction.user.id}>`, inline: true },
+              { name: '🛡️ Role Removed', value: `<@&${role.id}>`, inline: true },
+              { name: '🆔 Role ID', value: `\`${role.id}\``, inline: true },
+            )
+            .setColor('#A0041E') // Red for removal
+            .setTimestamp()
+            .setFooter({ text: 'System Configuration Audit' });
 
-      // Parse roles array from DB or initialize as empty array
-      let rolesArr = [];
-      if (ticketConfig.roles) {
-        try {
-          rolesArr = Array.isArray(ticketConfig.roles) ? ticketConfig.roles : JSON.parse(ticketConfig.roles);
-        } catch {
-          rolesArr = [];
+          await logChannel.send({ embeds: [logEmbed] });
         }
       }
 
-      if (!rolesArr.includes(role.id)) {
-        return interaction.reply({
-          content: 'Role is not in the ticket roles❌',
-          ephemeral: true,
-        });
-      }
-
-      // Remove the role
-      let replyMsg = '⏳ Removing role...';
-      await interaction.reply({ content: replyMsg, ephemeral: true });
-      rolesArr = rolesArr.filter(r => r !== role.id);
-
-      await TicketConfig.update({ roles: JSON.stringify(rolesArr) }, { where: { guildId: interaction.guild.id } });
-
-      replyMsg += `\n✅Removed <@&${role.id}> from ticket roles`;
-      interaction.editReply({
-        content: replyMsg,
-      });
-      if (!ticketConfig.logs) {
-        replyMsg += `\n⚠️ Enable logs to get notified when a role is added`;
-        interaction.editReply({
-          content: replyMsg,
-        });
-        return;
-      }
-      // Log the action if logs channel is set
-      if (ticketConfig.logs) {
-        const logsChannelId = ticketConfig.logsChannelId;
-        if (!logsChannelId) return;
-        const logsChannel = interaction.guild.channels.cache.get(logsChannelId);
-        if (!logsChannel) return;
-        const embed = new EmbedBuilder()
-          .setColor(0xff0000)
-          .setTitle('Role Removed Successfully')
-          .setDescription(
-            `**User:** ${interaction.user.tag}\n**Role Removed:** <@&${role.id}>\n\nTo view all available roles, use \`/roles list\``
-          )
-          .setTimestamp()
-          .setFooter({ text: 'Role Management' });
-        logsChannel.send({ embeds: [embed] });
-        replyMsg += `\n✅Logged the action in <#${logsChannelId}>`;
-        interaction.editReply({
-          content: replyMsg,
-        });
-      }
+      await interaction.editReply({ content: `🗑️ Successfully removed <@&${role.id}> from staff roles.` });
     } catch (error) {
-      console.error('Error removing role:', error);
-      return interaction.reply({ content: 'There was an error while removing the role❌', ephemeral: true });
+      console.error(error);
+      await interaction.editReply({ content: '❌ Error removing role.' });
     }
   },
 };
