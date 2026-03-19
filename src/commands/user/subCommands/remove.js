@@ -9,34 +9,30 @@ export default {
 
       const targetUser = interaction.options.getUser('user');
 
-      // 1. Verify Ticket
       const ticket = await Ticket.findOne({ where: { channelId: interaction.channel.id, resolved: false } });
-      if (!ticket) {
-        return interaction.editReply({ content: '❌ You can only use this command inside an active ticket.' });
-      }
+      if (!ticket) return interaction.editReply({ content: '❌ Use this inside an active ticket.' });
 
-      // 2. Permission Check
-      const ticketConfig = await TicketConfig.findOne({ where: { guildId: interaction.guild.id, type: ticket.type } });
+      // Permission Check (Targets GLOBAL staff roles)
+      const ticketConfig = await TicketConfig.findOne({
+        where: { guildId: interaction.guild.id, type: 'Dynamic-Panel' },
+      });
       const allowedRoles = JSON.parse(ticketConfig?.getDataValue('roles') || '[]');
-      const isStaff = interaction.member.roles.cache.some(role => allowedRoles.includes(role.id));
-      //   const isAuthor = interaction.user.id === ticket.authorId;
 
-      if (!isStaff) {
-        return interaction.editReply({ content: '❌ Only staff can remove users.' });
-      }
+      const isStaff =
+        interaction.member.permissions.has(PermissionsBitField.Flags.Administrator) ||
+        interaction.member.roles.cache.some(role => allowedRoles.includes(role.id));
 
-      // 3. Prevent removing the author
+      if (!isStaff) return interaction.editReply({ content: '❌ Only staff can remove users.' });
+
       if (targetUser.id === ticket.authorId) {
-        return interaction.editReply({ content: '❌ You cannot remove the ticket creator from their own ticket.' });
+        return interaction.editReply({ content: '❌ You cannot remove the ticket creator.' });
       }
 
-      // 4. Update Permissions (Delete their specific overwrite)
       await interaction.channel.permissionOverwrites.delete(targetUser.id);
-
-      await interaction.editReply({ content: `⛔ Successfully removed <@${targetUser.id}> from the ticket.` });
+      await interaction.editReply({ content: `⛔ Removed <@${targetUser.id}> from the ticket.` });
     } catch (error) {
-      console.error('Error in user remove:', error);
-      await interaction.editReply({ content: '❌ An error occurred while removing the user.' }).catch(() => null);
+      console.error(error);
+      await interaction.editReply({ content: '❌ Error removing user.' });
     }
   },
 };

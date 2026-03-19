@@ -9,28 +9,32 @@ export default {
 
       const targetUser = interaction.options.getUser('user');
 
-      // 1. Check if this channel is a registered ticket
+      // 1. Verify Ticket
       const ticket = await Ticket.findOne({ where: { channelId: interaction.channel.id, resolved: false } });
       if (!ticket) {
         return interaction.editReply({ content: '❌ You can only use this command inside an active ticket.' });
       }
 
-      // 2. Permission Check (Allow Staff OR the Ticket Author)
-      const ticketConfig = await TicketConfig.findOne({ where: { guildId: interaction.guild.id, type: ticket.type } });
+      // 2. Permission Check (Targets the GLOBAL staff roles)
+      const ticketConfig = await TicketConfig.findOne({
+        where: { guildId: interaction.guild.id, type: 'Dynamic-Panel' },
+      });
       const allowedRoles = JSON.parse(ticketConfig?.getDataValue('roles') || '[]');
-      const isStaff = interaction.member.roles.cache.some(role => allowedRoles.includes(role.id));
-      //   const isAuthor = interaction.user.id === ticket.authorId;
+
+      const isStaff =
+        interaction.member.permissions.has(PermissionsBitField.Flags.Administrator) ||
+        interaction.member.roles.cache.some(role => allowedRoles.includes(role.id));
 
       if (!isStaff) {
-        return interaction.editReply({ content: '❌ Only staff can add users.' });
+        return interaction.editReply({ content: '❌ Only staff can add users to tickets.' });
       }
 
-      // 3. Prevent adding bots or people already in the ticket
+      // 3. Prevent adding bots or the creator
       if (targetUser.bot) return interaction.editReply({ content: '❌ You cannot add bots to a ticket.' });
       if (targetUser.id === ticket.authorId)
-        return interaction.editReply({ content: '❌ The ticket creator is already in the ticket.' });
+        return interaction.editReply({ content: '❌ The creator is already here!' });
 
-      // 4. Update Channel Permissions
+      // 4. Update Permissions
       await interaction.channel.permissionOverwrites.edit(targetUser.id, {
         [PermissionsBitField.Flags.ViewChannel]: true,
         [PermissionsBitField.Flags.SendMessages]: true,
@@ -40,7 +44,7 @@ export default {
       await interaction.editReply({ content: `✅ Successfully added <@${targetUser.id}> to the ticket.` });
     } catch (error) {
       console.error('Error in user add:', error);
-      await interaction.editReply({ content: '❌ An error occurred while adding the user.' }).catch(() => null);
+      await interaction.editReply({ content: '❌ An error occurred.' });
     }
   },
 };

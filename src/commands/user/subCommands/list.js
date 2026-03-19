@@ -6,18 +6,14 @@ export default {
     try {
       await interaction.deferReply({ ephemeral: true });
 
-      // 1. Verify Ticket
       const ticket = await Ticket.findOne({ where: { channelId: interaction.channel.id, resolved: false } });
-      if (!ticket) {
-        return interaction.editReply({ content: '❌ You can only use this command inside an active ticket.' });
-      }
+      if (!ticket) return interaction.editReply({ content: '❌ No active ticket found here.' });
 
-      // 2. Scan Permissions
       const overwrites = interaction.channel.permissionOverwrites.cache;
       const addedUsers = [];
 
       overwrites.forEach(overwrite => {
-        // Look for users (type 1) who have ViewChannel allowed, and filter out the bot itself and the ticket creator
+        // type 1 = User. Filter out author and bot.
         if (
           overwrite.type === 1 &&
           overwrite.allow.has('ViewChannel') &&
@@ -28,19 +24,23 @@ export default {
         }
       });
 
-      // 3. Build the UI
       const embed = new EmbedBuilder()
-        .setTitle('👥 Users in this Ticket')
-        .setColor('#2b2d31')
-        .setDescription(
-          `**Ticket Creator:** <@${ticket.authorId}>\n\n` +
-            `**Added Users:**\n${addedUsers.length > 0 ? addedUsers.join('\n') : '*No extra users added.*'}`,
-        );
+        .setTitle('👥 Ticket Access List')
+        .setColor('#5865F2')
+        .addFields(
+          { name: '🎫 Creator', value: `<@${ticket.authorId}>`, inline: true },
+          {
+            name: '➕ Extra Users',
+            value: addedUsers.length > 0 ? addedUsers.join('\n') : '*No extra users.*',
+            inline: false,
+          },
+        )
+        .setFooter({ text: 'Use /user add to invite others' });
 
       await interaction.editReply({ embeds: [embed] });
     } catch (error) {
-      console.error('Error in user list:', error);
-      await interaction.editReply({ content: '❌ An error occurred while fetching the user list.' }).catch(() => null);
+      console.error(error);
+      await interaction.editReply({ content: '❌ Error fetching list.' });
     }
   },
 };
