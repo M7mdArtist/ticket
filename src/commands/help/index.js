@@ -59,6 +59,6 @@ export default {
       })
       .setTimestamp();
 
-    await interaction.reply({ embeds: [helpEmbed] });
+    await interaction.reply({ embeds: [helpEmbed], ephemeral: true });
   },
 };
