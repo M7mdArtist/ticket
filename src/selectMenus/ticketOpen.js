@@ -6,9 +6,9 @@ import {
   ButtonStyle,
   EmbedBuilder,
 } from 'discord.js';
-import Ticket from '../database/models/Ticket.js';
-import TicketConfig from '../database/models/TicketConfig.js'; // Added this
-import TicketCategory from '../database/models/TicketCategory.js';
+import Ticket from '../../database/models/Ticket.js';
+import TicketConfig from '../../database/models/TicketConfig.js';
+import TicketCategory from '../../database/models/TicketCategory.js';
 
 export default {
   customId: 'ticket_panel_select',
